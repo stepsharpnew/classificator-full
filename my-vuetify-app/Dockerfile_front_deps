@@ -1,0 +1,17 @@
+# Dockerfile для сохранения зависимостей фронтенда
+# Использование: docker build -f Dockerfile-deps -t front-deps:latest .
+# Сохранение: docker save front-deps:latest -o front-deps.tar
+
+FROM node:22
+
+WORKDIR /deps
+
+# Копируем только package.json и package-lock.json для установки зависимостей
+COPY package.json package-lock.json* ./
+
+# Устанавливаем зависимости (production и dev, так как нужны для сборки)
+RUN npm ci --include=dev || npm install --include=dev
+
+# Сохраняем node_modules в отдельном слое
+# Этот образ можно использовать как базовый для сборки
+WORKDIR /app

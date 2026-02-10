@@ -1,0 +1,26 @@
+# Dockerfile для сохранения зависимостей бэкенда
+# Использование: docker build -f Dockerfile-deps -t back-deps:latest .
+# Сохранение: docker save back-deps:latest -o back-deps.tar
+
+FROM python:3.10
+
+WORKDIR /deps
+
+# Обновляем pip
+RUN python -m pip install --upgrade pip
+
+# Создаем виртуальное окружение
+RUN python -m venv /opt/venv
+
+# Активируем виртуальное окружение
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Копируем только requirements.txt
+COPY requirements.txt .
+
+# Устанавливаем зависимости
+RUN pip install --no-cache-dir --requirement requirements.txt
+
+# Сохраняем venv в /opt/venv
+# Этот образ можно использовать как базовый для runtime
+WORKDIR /app

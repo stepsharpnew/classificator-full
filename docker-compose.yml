@@ -1,0 +1,80 @@
+version: "3.10"
+
+services:
+  postgres:
+    image: postgres:14.4
+    container_name: postgresql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRESQL_DB}
+      POSTGRES_USER: ${POSTGRESQL_USER}
+      POSTGRES_PASSWORD: ${POSTGRESQL_PASS}
+    volumes:
+      - "${PWD}/volumes/postgresql/pgdata:/var/lib/postgresql/data"
+      - "${PWD}/volumes/postgresql/init:/docker-entrypoint-initdb.d"
+
+  # frontend:
+  #   container_name: frontend
+  #   restart: "always"
+  #   build:
+  #     context: ./my-vuetify-app
+  #   ports:
+  #     - 5173:5173
+
+  # backend:
+  #   container_name: "backend"
+  #   restart: "always"
+  #   # image: backend:latest
+  #   build:
+  #     context: ./classificator_back
+  #   environment:
+  #     POSTGRESQL_DB: ${POSTGRESQL_DB}
+  #     POSTGRESQL_USER: ${POSTGRESQL_USER}
+  #     POSTGRESQL_PASS: ${POSTGRESQL_PASS}
+  #     POSTGRESQL_SERVER: ${POSTGRESQL_SERVER}
+  #     is_debug: ${is_debug}
+  #     jwt_access_token_secret: ${jwt_access_token_secret}
+  #     jwt_refresh_token_secret: ${jwt_refresh_token_secret}
+  #     origin: ${origin}
+  #   entrypoint: ["uvicorn", "app.main:app", "--host=0.0.0.0", "--port=8080"]
+  #   ports:
+  #     - 8080:8080
+  #   depends_on:
+  #     postgres:
+  #       condition: service_started
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    restart: always
+    environment:
+      ADMINER_DEFAULT_SERVER: postgresql
+      ADMINER_DESIGN: brade
+
+    ports:
+      - 8081:8080
+
+  # alembic:
+  #   image: alembic:latest
+  #   container_name: "alembic"
+  #   restart: "no"
+  #   environment:
+  #     POSTGRESQL_DB: ${POSTGRESQL_DB}
+  #     POSTGRESQL_USER: ${POSTGRESQL_USER}
+  #     POSTGRESQL_PASS: ${POSTGRESQL_PASS}
+  #   volumes:
+  #     - "${PWD}/volumes/alembic/base/versions:/service/base/versions"
+  #   entrypoint: ["python", "-m", "app"]
+
+  # nginx:
+  #   image: nginx:latest
+  #   container_name: nginx
+  #   restart: always
+  #   depends_on:
+  #     - backend
+  #     - frontend
+  #   ports:
+  #     - "80:80"
+  #   volumes:
+  #     - "./nginx.conf:/etc/nginx/nginx.conf"
