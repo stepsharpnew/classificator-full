@@ -54,7 +54,7 @@ async def get_equipment_type_by_path(path: str):
         return equipment
 
 
-async def update_equipment_type(equipment_id: UUID, name: str = None, fnn: str = None):
+async def update_equipment_type(equipment_id: UUID, name: str = None, fnn: str = None, type: str = None):
     async with async_session() as session:
         try:
             query = select(EquipmentType).where(EquipmentType.id == equipment_id)
@@ -64,6 +64,7 @@ async def update_equipment_type(equipment_id: UUID, name: str = None, fnn: str =
                 return False, f"Equipment with id '{equipment_id}' does not exists"
             equipment.name = name
             equipment.fnn = fnn
+            equipment.type = type if type else None
             await session.commit()
             return True, None
         except Exception as e:

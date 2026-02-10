@@ -48,8 +48,15 @@ async def delete_equipment_router(id: UUID):
 
 
 @equipment_type_router.put('/equipment-type')
-async def update_equipment_router(id: UUID, name: str, fnn: str):
-    success, error = await update_equipment_type(equipment_id=id, name=name, fnn=fnn)
+async def update_equipment_router(id: UUID, name: str, fnn: str, type: Optional[str] = None):
+    type_value = None
+    if type and type.strip():
+        try:
+            type_enum = EquipmentType(type)
+            type_value = type_enum.value
+        except ValueError:
+            type_value = None
+    success, error = await update_equipment_type(equipment_id=id, name=name, fnn=fnn, type=type_value)
     if not success:
         return Response(data=None, success=False, error={'msg': error})
     return Response(data='Тип оборудования обновлён', success=True, error=None)

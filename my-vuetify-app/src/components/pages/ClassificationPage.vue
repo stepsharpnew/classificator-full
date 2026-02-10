@@ -119,7 +119,7 @@
 
                 <template v-if="isEditing(row.id)">
                   <v-row dense align="center" class="w-100" fluid>
-                    <v-col cols="10">
+                    <v-col cols="7">
                       <v-text-field
                         v-model="editBuffer[row.id].name"
                         dense
@@ -134,8 +134,20 @@
                         v-model="editBuffer[row.id].fnn"
                         dense
                         hide-details
-                        label="FNN"
+                        label="ФНН"
                         @keyup.enter="saveNode(row)"
+                      />
+                    </v-col>
+
+                    <v-col cols="3">
+                      <v-select
+                        v-model="editBuffer[row.id].type"
+                        :items="equipmentTypeOptions"
+                        item-title="label"
+                        item-value="value"
+                        dense
+                        hide-details
+                        label="Тип"
                       />
                     </v-col>
                   </v-row>
@@ -217,6 +229,12 @@ export default {
       // single active editing id (only one can be edited)
       editing: null, // currently editing node id or null
       editBuffer: {}, // { [nodeId]: '...' }
+      // типы оборудования для v-select
+      equipmentTypeOptions: [
+        { label: 'ССИУС', value: 'ssius' },
+        { label: 'СИУС', value: 'sius' },
+        { label: '(Пусто)', value: '' },
+      ],
       // notification dialog
       notification: {
         show: false,
@@ -458,6 +476,7 @@ export default {
           name: row.name,
           fnn: row.fnn || '',
           path: row.isEquipment ? '' : row.id, // путь только для категорий
+          type: row.isEquipment ? (row.equipmentType || '') : '',
         };
       }
       this.editing = row.id;
@@ -478,7 +497,7 @@ export default {
 
     async saveNode(row) {
       const id = row.id;
-      const { name: newName, fnn: newFnn, path: newPath } = this.editBuffer[id];
+      const { name: newName, fnn: newFnn, path: newPath, type: newType } = this.editBuffer[id];
       if (!newName) {
         this.showNotification('Поле "Наименование" не должно быть пустым', 'error');
         return;
@@ -520,20 +539,23 @@ export default {
 
       const prevName = node.name;
       const prevFnn = node.fnn;
+      const prevType = node.equipmentType;
       node.name = newName;
       node.fnn = newFnn;
+      if (node.isEquipment) node.equipmentType = newType || null;
       this.version++;
       this.cancelEdit(id);
 
       try {
         let res;
         if (node.isEquipment) {
+          const typeParam = newType != null ? `&type=${encodeURIComponent(newType)}` : '';
           res = await axios.put(
             `/api/equipment-type?id=${encodeURIComponent(
               id,
             )}&name=${encodeURIComponent(newName)}&fnn=${encodeURIComponent(
               newFnn,
-            )}`,
+            )}${typeParam}`,
           );
         } else {
           const path = node.id;
@@ -549,6 +571,7 @@ export default {
           const msg = res.data.error?.msg || res.data.error || 'Ошибка при сохранении';
           node.name = prevName;
           node.fnn = prevFnn;
+          if (node.isEquipment) node.equipmentType = prevType;
           this.version++;
           this.showNotification(msg, 'error');
         } else {
@@ -559,6 +582,7 @@ export default {
         console.error('saveNode error', err);
         node.name = prevName;
         node.fnn = prevFnn;
+        if (node.isEquipment) node.equipmentType = prevType;
         this.version++;
         const detail = err.response?.data?.error?.msg || 'Ошибка при сохранении';
         this.showNotification(`${detail}. Данные восстановлены.`, 'error');
