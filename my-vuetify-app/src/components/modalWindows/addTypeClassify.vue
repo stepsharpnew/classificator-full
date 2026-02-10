@@ -13,7 +13,7 @@
             placeholder="Выберите путь"
             dense
             outlined
-            required
+            :rules="[rules.required]"
           />
 
           <v-select
@@ -35,7 +35,7 @@
             dense
             outlined
             rows="2"
-            required
+            :rules="[rules.required]"
           />
           <v-text-field
             v-if="typeModal != 'classification'"
@@ -50,7 +50,7 @@
       </v-card-text>
 
       <v-card-actions class="justify-end">
-        <v-btn color="success" @click="createItem">Создать</v-btn>
+        <v-btn color="success" :disabled="!isValid" @click="createItem">Создать</v-btn>
         <v-btn color="error" @click="closeDialog">Отмена</v-btn>
       </v-card-actions>
     </v-card>
@@ -85,10 +85,13 @@ export default {
         fnn: '',
       },
       types: [
-        { label: 'SSIUS', value: 'ssius' },
-        { label: 'SIUS', value: 'sius' },
+        { label: 'ССИУС', value: 'ssius' },
+        { label: 'СИУС', value: 'sius' },
         { label: '(Пусто)', value: '' },
       ],
+      rules: {
+        required: (v) => (!!v && !!v.trim()) || 'Обязательное поле',
+      },
     };
   },
 
@@ -103,8 +106,7 @@ export default {
 
   methods: {
     createItem() {
-      //   if (!this.formData.path || !this.formData.type || !this.formData.name)
-      //     return;
+      if (!this.isValid) return;
       this.$emit('createItem', { typeModal: this.typeModal, ...this.formData });
       this.resetForm();
       this.closeDialog();

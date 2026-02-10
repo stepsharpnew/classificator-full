@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from uuid import UUID
 from typing import Optional
-from app.schemas.schema import EquipmentType
+from app.schemas.schema import EquipmentType, Response
 
 from app.libs.handlers.equipment_type_handlers import create_equipment_type, get_equipment_type, delete_equipment_type, \
      update_equipment_type, get_equipment_type_by_path
@@ -33,14 +33,23 @@ async def create_equipment_router(path: str, name: str, type: Optional[str] = No
         except ValueError:
             # Если значение не соответствует enum, оставляем None
             type_value = None
-    return await create_equipment_type(classificator_path=path, name=name, type=type_value, fnn=fnn)
+    success, error = await create_equipment_type(classificator_path=path, name=name, type=type_value, fnn=fnn)
+    if not success:
+        return Response(data=None, success=False, error={'msg': error})
+    return Response(data='Тип оборудования создан', success=True, error=None)
     
 
 @equipment_type_router.delete('/equipment-type')
 async def delete_equipment_router(id: UUID):
-    return await delete_equipment_type(equipment_id=id)
+    success, error = await delete_equipment_type(equipment_id=id)
+    if not success:
+        return Response(data=None, success=False, error={'msg': error})
+    return Response(data='Тип оборудования удалён', success=True, error=None)
 
 
 @equipment_type_router.put('/equipment-type')
 async def update_equipment_router(id: UUID, name: str, fnn: str):
-    return await update_equipment_type(equipment_id=id, name=name, fnn=fnn)
+    success, error = await update_equipment_type(equipment_id=id, name=name, fnn=fnn)
+    if not success:
+        return Response(data=None, success=False, error={'msg': error})
+    return Response(data='Тип оборудования обновлён', success=True, error=None)

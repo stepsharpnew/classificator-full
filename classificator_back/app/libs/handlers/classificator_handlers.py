@@ -138,8 +138,113 @@ async def update_classification(path: str, name: str):
         query = select(Classificator).where(Classificator.path == path)
         result = await session.execute(query)
         element = result.scalar_one_or_none()
+        if not element:
+            return Response(data=None, success=False, error={'msg': f"Классификация {path} не найдена"})
         element.name = name
         await session.commit()
+        return Response(data=f"Классификация {path} обновлена", success=True, error=None)
+
+
+async def rename_classification_path(old_path: str, new_path: str):
+    """Переименование пути классификации с каскадным обновлением всех потомков и EquipmentType."""
+    # Валидация формата нового пути
+    try:
+        ClassificatorModel(path=new_path, name="validation")
+    except ValidationError:
+        return Response(data=None, success=False, error={'msg': f"Неверный формат пути '{new_path}'"})
+
+    async with async_session() as session:
+        # 1. Проверяем, что исходная классификация существует
+        result = await session.execute(
+            text("SELECT path::text, name FROM classificator WHERE path::text = :old_path OR path::text LIKE :prefix ORDER BY path"),
+            {"old_path": old_path, "prefix": f"{old_path}.%"}
+        )
+        rows = result.fetchall()
+
+        if not rows:
+            return Response(data=None, success=False, error={'msg': f"Классификация {old_path} не найдена"})
+
+        # 2. Строим маппинг старый путь → новый путь
+        mapping = {}
+        for path_str, name in rows:
+            new_p = new_path + path_str[len(old_path):]
+            mapping[path_str] = (new_p, name)
+
+        # 3. Проверяем, что ни один из новых путей не занят (кроме тех, которые сами переименовываются)
+        old_paths_set = set(mapping.keys())
+        for new_p, _ in mapping.values():
+            if new_p in old_paths_set:
+                # Этот путь сам переименовывается — пропускаем
+                continue
+            check = await session.execute(
+                text("SELECT EXISTS(SELECT 1 FROM classificator WHERE path::text = :p)"),
+                {"p": new_p}
+            )
+            if check.scalar():
+                return Response(data=None, success=False, error={
+                    'msg': f"Классификация {new_p} уже существует, переименование невозможно"
+                })
+
+        # 4. Проверяем, что родитель нового пути существует (если есть родитель)
+        new_parts = new_path.split('.')
+        if len(new_parts) > 1:
+            parent_new = '.'.join(new_parts[:-1])
+            new_paths_set = set(v[0] for v in mapping.values())
+            if parent_new not in new_paths_set:
+                check = await session.execute(
+                    text("SELECT EXISTS(SELECT 1 FROM classificator WHERE path::text = :p)"),
+                    {"p": parent_new}
+                )
+                if not check.scalar():
+                    return Response(data=None, success=False, error={
+                        'msg': f"Родительский элемент {parent_new} не существует"
+                    })
+
+        # 5. Выполняем переименование:
+        #    a) Создаём новые записи classificator
+        #    b) Перенаправляем equipment_type на новые пути
+        #    c) Удаляем старые записи classificator
+        try:
+            # a) Вставляем новые classificator (от корня к листьям)
+            sorted_paths = sorted(mapping.keys(), key=lambda p: len(p.split('.')))
+            for old_p in sorted_paths:
+                new_p, name = mapping[old_p]
+                await session.execute(
+                    text("INSERT INTO classificator (path, name) VALUES (CAST(:path AS ltree), :name)"),
+                    {"path": new_p, "name": name}
+                )
+
+            # b) Обновляем equipment_type ссылки
+            for old_p in sorted_paths:
+                new_p, _ = mapping[old_p]
+                await session.execute(
+                    text("UPDATE equipment_type SET classificator_path = CAST(:new_p AS ltree) WHERE classificator_path::text = :old_p"),
+                    {"new_p": new_p, "old_p": old_p}
+                )
+
+            # c) Удаляем старые classificator (от листьев к корню)
+            for old_p in reversed(sorted_paths):
+                await session.execute(
+                    text("DELETE FROM classificator WHERE path::text = :old_p"),
+                    {"old_p": old_p}
+                )
+
+            await session.commit()
+            return Response(
+                data=f"Нумерация изменена: {old_path} → {new_path}",
+                success=True,
+                error=None
+            )
+        except IntegrityError as exc:
+            await session.rollback()
+            return Response(data=None, success=False, error={
+                'msg': f"Ошибка при переименовании: конфликт путей"
+            })
+        except Exception as exc:
+            await session.rollback()
+            return Response(data=None, success=False, error={
+                'msg': f"Ошибка при переименовании: {str(exc)}"
+            })
         
         
         

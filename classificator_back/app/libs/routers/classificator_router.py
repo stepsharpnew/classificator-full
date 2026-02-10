@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.libs.auth.auth_handler import Auth
-from app.libs.handlers.classificator_handlers import create_classification, delete_classification, get_classification, update_classification, get_classification_leaf, get_classification_tree
+from app.libs.handlers.classificator_handlers import create_classification, delete_classification, get_classification, update_classification, get_classification_leaf, get_classification_tree, rename_classification_path
 from fastapi import Security
 classificator_router = APIRouter()
 
@@ -31,8 +31,13 @@ async def create_classificator_router(path: str, name: str):
 
 
 @classificator_router.put('/classification')
-async def create_classificator_router(path: str, name: str):
+async def update_classificator_router(path: str, name: str):
     return await update_classification(path=path, name=name)
+
+
+@classificator_router.put('/classification/rename')
+async def rename_classificator_router(old_path: str, new_path: str):
+    return await rename_classification_path(old_path=old_path, new_path=new_path)
     
 
 @classificator_router.delete('/classification')

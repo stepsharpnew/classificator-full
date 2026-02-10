@@ -43,6 +43,14 @@
                 <template v-if="isEditing(row.id)">
                   <div class="d-flex ga-2 align-center">
                     <v-text-field
+                      v-model="editBuffer[row.id].path"
+                      dense
+                      hide-details
+                      label="Путь"
+                      style="max-width: 160px"
+                      @keyup.enter="saveNode(row)"
+                    />
+                    <v-text-field
                       v-model="editBuffer[row.id].name"
                       dense
                       hide-details
@@ -137,7 +145,7 @@
                   <div class="d-flex justify-start align-center ga-2">
                     <span class="equipment-name">{{ row.displayName }}</span>
                     <v-chip v-if="row.equipmentType" small color="primary" variant="outlined">
-                      {{ row.equipmentType }}
+                      {{ typeDisplayName(row.equipmentType) }}
                     </v-chip>
                     <v-chip v-else small color="grey" variant="outlined">
                       -
@@ -175,6 +183,12 @@
         </div>
       </v-card-text>
     </v-card>
+
+    <NotificationDialog
+      v-model="notification.show"
+      :message="notification.message"
+      :type="notification.type"
+    />
   </div>
 </template>
 
@@ -183,10 +197,11 @@ import axios from 'axios';
 import { markRaw } from 'vue';
 import MainNavBar from '../components/MainNavBar.vue';
 import AddTypeClassify from '../modalWindows/addTypeClassify.vue';
+import NotificationDialog from '../modalWindows/NotificationDialog.vue';
 
 export default {
   name: 'ClassificationViewOptions',
-  components: { MainNavBar, AddTypeClassify },
+  components: { MainNavBar, AddTypeClassify, NotificationDialog },
 
   data() {
     return {
@@ -202,6 +217,12 @@ export default {
       // single active editing id (only one can be edited)
       editing: null, // currently editing node id or null
       editBuffer: {}, // { [nodeId]: '...' }
+      // notification dialog
+      notification: {
+        show: false,
+        message: '',
+        type: 'success',
+      },
     };
   },
 
@@ -264,6 +285,16 @@ export default {
   },
 
   methods: {
+    showNotification(message, type = 'success') {
+      this.notification = { show: true, message, type };
+    },
+    typeDisplayName(type) {
+      if (type == null || type === '') return '-';
+      const t = String(type).toLowerCase();
+      if (t === 'ssius') return 'ССИУС';
+      if (t === 'sius') return 'СИУС';
+      return type;
+    },
     handleAddEquipment() {
       this.showDialog = true;
       this.typeModal = 'equipment';
@@ -273,17 +304,31 @@ export default {
       this.typeModal = 'classification';
     },
     async createItem(formData) {
-      if (formData.typeModal === 'equipment') {
-        const typeParam = formData.type ? `&type=${formData.type}` : '';
-        await axios.post(
-          `/api/equipment-type?path=${formData.path}&name=${formData.name}${typeParam}&fnn=${formData.fnn || ''}`,
-        );
-      } else {
-        await axios.post(
-          `/api/classification?path=${formData.path}&name=${formData.name}`,
-        );
+      try {
+        let res;
+        if (formData.typeModal === 'equipment') {
+          const typeParam = formData.type ? `&type=${formData.type}` : '';
+          res = await axios.post(
+            `/api/equipment-type?path=${formData.path}&name=${formData.name}${typeParam}&fnn=${formData.fnn || ''}`,
+          );
+        } else {
+          res = await axios.post(
+            `/api/classification?path=${formData.path}&name=${formData.name}`,
+          );
+        }
+        if (res.data && res.data.success === false) {
+          const msg = res.data.error?.msg || res.data.error || 'Неизвестная ошибка';
+          this.showNotification(msg, 'error');
+        } else {
+          const label = formData.typeModal === 'equipment' ? 'Тип оборудования' : 'Классификация';
+          this.showNotification(`${label} успешно создан(а)`);
+          this.fetchClassification();
+        }
+      } catch (err) {
+        const detail = err.response?.data?.error?.msg || err.response?.data?.detail || 'Неизвестная ошибка';
+        this.showNotification(detail, 'error');
+        console.error('createItem error', err);
       }
-      this.fetchClassification();
     },
     isOpen(id) {
       return !!this.openMap[id];
@@ -412,6 +457,7 @@ export default {
         this.editBuffer[row.id] = {
           name: row.name,
           fnn: row.fnn || '',
+          path: row.isEquipment ? '' : row.id, // путь только для категорий
         };
       }
       this.editing = row.id;
@@ -432,14 +478,46 @@ export default {
 
     async saveNode(row) {
       const id = row.id;
-      const { name: newName, fnn: newFnn } = this.editBuffer[id];
+      const { name: newName, fnn: newFnn, path: newPath } = this.editBuffer[id];
       if (!newName) {
-        alert('Поля "Наименование" и "FNN" не должны быть пустыми');
+        this.showNotification('Поле "Наименование" не должно быть пустым', 'error');
         return;
       }
 
       const node = this.nodeMap.get(id);
       if (!node) return;
+
+      // Для категорий: если путь изменился — вызываем rename
+      if (!node.isEquipment && newPath && newPath !== id) {
+        this.cancelEdit(id);
+        try {
+          const res = await axios.put(
+            `/api/classification/rename?old_path=${encodeURIComponent(id)}&new_path=${encodeURIComponent(newPath)}`,
+          );
+          if (res.data && res.data.success === false) {
+            const msg = res.data.error?.msg || 'Ошибка при переименовании';
+            this.showNotification(msg, 'error');
+          } else {
+            // Если название тоже изменилось — обновляем после переименования
+            if (newName !== node.name) {
+              const nameRes = await axios.put(
+                `/api/classification?path=${encodeURIComponent(newPath)}&name=${encodeURIComponent(newName)}&fnn=`,
+              );
+              if (nameRes.data && nameRes.data.success === false) {
+                this.showNotification(nameRes.data.error?.msg || 'Ошибка при обновлении названия', 'error');
+              }
+            }
+            this.showNotification(`Нумерация изменена: ${id} → ${newPath}`);
+            this.fetchClassification();
+          }
+        } catch (err) {
+          console.error('renameNode error', err);
+          const detail = err.response?.data?.error?.msg || 'Ошибка при переименовании';
+          this.showNotification(detail, 'error');
+        }
+        return;
+      }
+
       const prevName = node.name;
       const prevFnn = node.fnn;
       node.name = newName;
@@ -448,32 +526,42 @@ export default {
       this.cancelEdit(id);
 
       try {
+        let res;
         if (node.isEquipment) {
-          await axios.put(
+          res = await axios.put(
             `/api/equipment-type?id=${encodeURIComponent(
               id,
             )}&name=${encodeURIComponent(newName)}&fnn=${encodeURIComponent(
               newFnn,
             )}`,
           );
-          alert('Оборудование обновлено');
         } else {
           const path = node.id;
-          await axios.put(
+          res = await axios.put(
             `/api/classification?path=${encodeURIComponent(
               path,
             )}&name=${encodeURIComponent(newName)}&fnn=${encodeURIComponent(
               newFnn,
             )}`,
           );
-          alert('Категория обновлена');
+        }
+        if (res.data && res.data.success === false) {
+          const msg = res.data.error?.msg || res.data.error || 'Ошибка при сохранении';
+          node.name = prevName;
+          node.fnn = prevFnn;
+          this.version++;
+          this.showNotification(msg, 'error');
+        } else {
+          const label = node.isEquipment ? 'Оборудование' : 'Категория';
+          this.showNotification(`${label} обновлен(а)`);
         }
       } catch (err) {
         console.error('saveNode error', err);
         node.name = prevName;
         node.fnn = prevFnn;
         this.version++;
-        alert('Ошибка при сохранении. Данные восстановлены.');
+        const detail = err.response?.data?.error?.msg || 'Ошибка при сохранении';
+        this.showNotification(`${detail}. Данные восстановлены.`, 'error');
       }
     },
 
@@ -500,24 +588,7 @@ export default {
       }
       this.version++;
 
-      try {
-        if (node.isEquipment) {
-          // delete equipment via equipment-type endpoint
-          await axios.delete(
-            `/api/equipment-type?id=${encodeURIComponent(id)}`,
-          );
-          alert('Оборудование удалено');
-        } else {
-          // delete classification (directory)
-          const path = node.id;
-          await axios.delete(
-            `/api/classification?path=${encodeURIComponent(path)}`,
-          );
-          alert('Категория удалена');
-        }
-      } catch (err) {
-        console.error('deleteItem error', err);
-        // revert: re-add node and restore parent children
+      const revert = () => {
         this.nodeMap.set(id, savedNode);
         if (parent && savedChildren) {
           parent.childrenPaths = savedChildren;
@@ -527,7 +598,33 @@ export default {
           }).length;
         }
         this.version++;
-        alert('Ошибка при удалении. Данные восстановлены.');
+      };
+
+      try {
+        let res;
+        if (node.isEquipment) {
+          res = await axios.delete(
+            `/api/equipment-type?id=${encodeURIComponent(id)}`,
+          );
+        } else {
+          const path = node.id;
+          res = await axios.delete(
+            `/api/classification?path=${encodeURIComponent(path)}`,
+          );
+        }
+        if (res.data && res.data.success === false) {
+          revert();
+          const msg = res.data.error?.msg || res.data.error || 'Ошибка при удалении';
+          this.showNotification(msg, 'error');
+        } else {
+          const label = node.isEquipment ? 'Оборудование' : 'Категория';
+          this.showNotification(`${label} удален(а)`);
+        }
+      } catch (err) {
+        console.error('deleteItem error', err);
+        revert();
+        const detail = err.response?.data?.error?.msg || 'Ошибка при удалении';
+        this.showNotification(`${detail}. Данные восстановлены.`, 'error');
       }
     },
   },
