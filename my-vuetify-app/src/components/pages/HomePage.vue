@@ -42,8 +42,11 @@
             item-value="id"
             :items="suggestions"
             :loading="suggestionLoading"
+            clearable
+            no-filter
             @update:search="onNameInput"
             @update:modelValue="onFilterChange()"
+            @update:menu="(open) => open && onNameMenuOpen()"
           />
         </v-col>
         <v-col cols="2">
@@ -72,7 +75,9 @@
         </v-col>
         <v-col cols="1">
           <v-select
-            :items="types"
+            :items="typeOptions"
+            item-title="title"
+            item-value="value"
             label="Тип"
             variant="outlined"
             density="comfortable"
@@ -208,7 +213,7 @@
             >{{ item.act_of_receiving }}
           </v-col>
           <v-col cols="1" class="d-flex justify-center align-center"
-            >{{ item.eq_type?.type || '-' }}
+            >{{ typeDisplayName(item.eq_type?.type) }}
           </v-col>
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.department?.name }}
@@ -325,13 +330,19 @@ export default {
       items: [],
       departments: [],
       years: [],
-      types: [],
+      typeOptions: [
+        { title: 'ВСЕ', value: 'all' },
+        { title: 'Пусто', value: 'empty' },
+        { title: 'ССИУС', value: 'ssius' },
+        { title: 'СИУС', value: 'sius' },
+      ],
       filters: {
         search: '',
         name: '',
         department: '',
         year: '',
-        type: '',
+        type: 'all',
+        equipmentType: '',
       },
       suggestions: [],
       suggestionLoading: false,
@@ -353,8 +364,13 @@ export default {
     onNameInput(val) {
       clearTimeout(this.suggestionTimeout);
       this.suggestionTimeout = setTimeout(() => {
-        this.fetchNameSuggestions(val);
+        this.fetchNameSuggestions(val ?? '');
       }, 300);
+    },
+    onNameMenuOpen() {
+      if (this.suggestions.length === 0 && !this.suggestionLoading) {
+        this.fetchNameSuggestions('');
+      }
     },
     async fetchNameSuggestions(query) {
       this.suggestionLoading = true;
@@ -380,11 +396,15 @@ export default {
       // Вычисляем offset на основе текущей страницы
       const offset = (this.page - 1) * this.itemsPerPage;
       
+      const { type, ...restFilters } = this.filters;
       let params = { 
-        ...this.filters,
+        ...restFilters,
         limit: this.itemsPerPage,
         offset: offset
       };
+      if (type && type !== 'all') {
+        params.type = type;
+      }
       
       const response = await axios.get('/api/equipment', { params });
       console.log(response.data);
@@ -403,7 +423,8 @@ export default {
         name: '',
         department: '',
         year: '',
-        type: '',
+        type: 'all',
+        equipmentType: '',
       };
       this.page = 1;
       this.fetchData();
@@ -451,6 +472,13 @@ export default {
           return status;
       }
     },
+    typeDisplayName(type) {
+      if (type == null || type === '') return 'Пусто';
+      const t = String(type).toLowerCase();
+      if (t === 'ssius') return 'ССИУС';
+      if (t === 'sius') return 'СИУС';
+      return type;
+    },
     editItem(item) {
       this.selectedItem = item;
       this.selectedMode = 'edit';
@@ -475,7 +503,6 @@ export default {
   async mounted() {
     await this.fetchData();
 
-    this.types = [...new Set(this.items.map((item) => item.eq_type?.type || '').filter(t => t !== ''))];
     this.years = [
       ...new Set(
         this.items

@@ -59,7 +59,7 @@
             <v-col cols="12" md="4">
               <v-select
                 v-model="formData.status"
-                :items="statusOptions"
+                :items="statusOptionsFiltered"
                 item-title="text"
                 item-value="value"
                 label="Статус"
@@ -89,8 +89,11 @@
                 item-value="id"
                 :items="formattedParentSuggestions"
                 :loading="suggestionLoading"
+                no-filter
+                clearable
                 @update:search="onParentSearch"
                 @update:modelValue="onParentSelect"
+                @update:menu="(open) => open && onParentMenuOpen()"
                 :rules="[(v) => !!v || 'Обязательное поле']"
               >
                 <template v-slot:item="{ props, item }">
@@ -138,7 +141,7 @@
                 <v-col cols="12" md="4">
                   <v-select
                     v-model="child.status"
-                    :items="statusOptions"
+                    :items="statusOptionsFiltered"
                     item-title="text"
                     item-value="value"
                     label="Статус"
@@ -171,8 +174,11 @@
                     variant="outlined"
                     density="comfortable"
                     label="Наименование оборудования"
+                    no-filter
+                    clearable
                     @update:search="(val) => onChildSearch(val, idx)"
                     @update:modelValue="(val) => onChildSelect(val, idx)"
+                    @update:menu="(open) => open && onChildMenuOpen(idx)"
                   >
                     <template v-slot:item="{ props, item }">
                       <v-list-item v-bind="props">
@@ -262,7 +268,8 @@ export default {
       default: null,
     },
     mode: {
-      String,
+      type: String,
+      default: '',
     },
   },
 
@@ -308,6 +315,12 @@ export default {
     };
   },
   computed: {
+    statusOptionsFiltered() {
+      if (this.mode === 'edit') {
+        return this.statusOptions;
+      }
+      return this.statusOptions.filter((opt) => opt.value !== 'archive');
+    },
     formattedParentSuggestions() {
       return this.parentSuggestions.map((item) => ({
         ...item,
@@ -391,8 +404,13 @@ export default {
     onParentSearch(val) {
       clearTimeout(this.parentTimeout);
       this.parentTimeout = setTimeout(() => {
-        this.fetchParentSuggestions(val);
+        this.fetchParentSuggestions(val ?? '');
       }, 300);
+    },
+    onParentMenuOpen() {
+      if (this.parentSuggestions.length === 0 && !this.suggestionLoading) {
+        this.fetchParentSuggestions('');
+      }
     },
     async fetchParentSuggestions(query) {
       this.suggestionLoading = true;
@@ -412,8 +430,14 @@ export default {
     onChildSearch(val, idx) {
       clearTimeout(this.childTimeout[idx]);
       this.childTimeout[idx] = setTimeout(() => {
-        this.fetchChildSuggestions(val, idx);
+        this.fetchChildSuggestions(val ?? '', idx);
       }, 300);
+    },
+    onChildMenuOpen(idx) {
+      const list = this.childSuggestions[idx];
+      if ((!list || list.length === 0) && !this.childLoading[idx]) {
+        this.fetchChildSuggestions('', idx);
+      }
     },
     async fetchChildSuggestions(query, idx) {
       this.childLoading[idx] = true;

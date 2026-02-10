@@ -41,7 +41,7 @@
                     </v-chip>
                 </v-col>
                 <v-col cols="2" class="d-flex justify-center align-center">{{ item.eq_type?.name }}</v-col>
-                <v-col cols="1" class="d-flex justify-center align-center">{{ item.eq_type?.type || '-' }}</v-col>
+                <v-col cols="1" class="d-flex justify-center align-center">{{ typeDisplayName(item.eq_type?.type) }}</v-col>
                 <v-col cols="2" class="d-flex justify-center align-center">{{ item.comment }}</v-col>
             </v-row>
         </v-card-text>
@@ -84,6 +84,13 @@
           'archive': 'В архиве',
         }
         return texts[status] || status
+      },
+      typeDisplayName(type) {
+        if (type == null || type === '') return 'Пусто';
+        const t = String(type).toLowerCase();
+        if (t === 'ssius') return 'ССИУС';
+        if (t === 'sius') return 'СИУС';
+        return type;
       },
     }
   }

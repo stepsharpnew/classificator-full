@@ -27,7 +27,7 @@
           <div class="pa-2 mb-4" style="border: 1px solid #ccc">
             <div>Инв.№ {{ item.inventory_number }}</div>
             <div>Зав.№ {{ item.factory_number }}</div>
-            <div>Тип: {{ item.eq_type?.type || '-' }}</div>
+            <div>Тип: {{ typeDisplayName(item.eq_type?.type) }}</div>
             <div v-if="item.components.length">
               В составе: {{ item.components.length }} ед. оборудования
             </div>
@@ -110,6 +110,13 @@ export default {
     this.fetchDep();
   },
   methods: {
+    typeDisplayName(type) {
+      if (type == null || type === '') return 'Пусто';
+      const t = String(type).toLowerCase();
+      if (t === 'ssius') return 'ССИУС';
+      if (t === 'sius') return 'СИУС';
+      return type;
+    },
     openDialog() {
       this.confirmDialog = true;
     },

@@ -72,7 +72,9 @@
         </v-col>
         <v-col cols="1">
           <v-select
-            :items="types"
+            :items="typeOptions"
+            item-title="title"
+            item-value="value"
             label="Тип"
             variant="outlined"
             density="comfortable"
@@ -204,7 +206,7 @@
             >{{ item.equipment.act_of_decommissioning }}
           </v-col>
           <v-col cols="1" class="d-flex justify-center align-center"
-            >{{ item.equipment.eq_type?.type || '-' }}
+            >{{ typeDisplayName(item.equipment.eq_type?.type) }}
           </v-col>
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.equipment.department?.name }}
@@ -306,7 +308,11 @@ export default {
       items: [],
       departments: [],
       years: [],
-      types: [],
+      typeOptions: [
+        { title: 'Пусто', value: '' },
+        { title: 'ССИУС', value: 'ssius' },
+        { title: 'СИУС', value: 'sius' },
+      ],
       filters: {
         search: '',
         name: '',
@@ -335,6 +341,13 @@ export default {
     },
   },
   methods: {
+    typeDisplayName(type) {
+      if (type == null || type === '') return 'Пусто';
+      const t = String(type).toLowerCase();
+      if (t === 'ssius') return 'ССИУС';
+      if (t === 'sius') return 'СИУС';
+      return type;
+    },
     openDialog(item) {
       this.deletedItem = item;
       this.confirmDialog = true;

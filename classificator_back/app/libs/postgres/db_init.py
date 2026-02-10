@@ -16,7 +16,7 @@ import asyncio
 if __name__=='__main__':
 
 
-    CONNECTION = 'postgresql+psycopg2://classificator:classificator@192.168.1.60/classificator'
+    CONNECTION = 'postgresql+psycopg2://classificator:classificator@192.168.1.35/classificator'
     engine = create_engine(CONNECTION)
 
     with engine.begin() as connection:

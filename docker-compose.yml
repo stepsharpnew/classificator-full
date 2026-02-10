@@ -44,16 +44,16 @@ services:
   #   depends_on:
   #     postgres:
   #       condition: service_started
-  adminer:
-    image: adminer:latest
-    container_name: adminer
-    restart: always
-    environment:
-      ADMINER_DEFAULT_SERVER: postgresql
-      ADMINER_DESIGN: brade
+  # adminer:
+  #   image: adminer:latest
+  #   container_name: adminer
+  #   restart: always
+  #   environment:
+  #     ADMINER_DEFAULT_SERVER: postgresql
+  #     ADMINER_DESIGN: brade
 
-    ports:
-      - 8081:8080
+  #   ports:
+  #     - 8081:8080
 
   # alembic:
   #   image: alembic:latest

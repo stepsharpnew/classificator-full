@@ -137,13 +137,17 @@ async def get_equipments(search, equipmentType, department, year, type, limit=10
             stmt = stmt.where(or_(parent_condition, child_exists))
 
         if type:
-            # Условие для родительского элемента
-            parent_condition = Equipment.eq_type.has(type=type)
-            # Условие для дочернего элемента (через any())
-            child_condition = Equipment.components.any(Equipment.eq_type.has(type=type))
-
-            # Объединяем условия
-            stmt = stmt.where(or_(parent_condition, child_condition))
+            if type == 'empty':
+                # Только оборудование с пустым типом (eq_type.type IS NULL)
+                parent_condition = Equipment.eq_type.has(EquipmentType.type.is_(None))
+                child_condition = Equipment.components.any(Equipment.eq_type.has(EquipmentType.type.is_(None)))
+                stmt = stmt.where(or_(parent_condition, child_condition))
+            else:
+                # Условие для родительского элемента
+                parent_condition = Equipment.eq_type.has(type=type)
+                # Условие для дочернего элемента (через any())
+                child_condition = Equipment.components.any(Equipment.eq_type.has(type=type))
+                stmt = stmt.where(or_(parent_condition, child_condition))
         
         if department:
             stmt = stmt.where(Equipment.department_id == department)
