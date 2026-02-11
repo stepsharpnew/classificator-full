@@ -258,7 +258,7 @@ async def equipment_update(data, user):
             result = await session.execute(stmt)
             existing_equipment = result.scalars().first()
             if user['department_id'] != str(existing_equipment.department_id):
-                if user['department_id'] == 'admin':
+                if user['department_id'] == 'admin' or user['role'] == 'chief_engineer':
                     pass
                 else:
                     raise HTTPException(status_code=400, detail='Вы не можете редактировать не свое оборудование')
