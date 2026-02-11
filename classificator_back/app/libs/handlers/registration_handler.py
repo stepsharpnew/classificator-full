@@ -196,6 +196,18 @@ async def get_departments():
         return departments
 
 
+def _user_to_dict(u):
+    return {
+        'id': str(u.id),
+        'login': u.login,
+        'first_name': u.first_name or '',
+        'last_name': u.last_name or '',
+        'role': u.role.value if hasattr(u.role, 'value') else str(u.role),
+        'is_superuser': u.is_superuser,
+        'department': {'id': str(u.department.id), 'name': u.department.name} if u.department else None,
+    }
+
+
 async def get_users(department:str = None):
   async with async_session() as session:
     if department:
@@ -213,7 +225,7 @@ async def get_users(department:str = None):
         selectinload(Users.department))
         result = await session.execute(stmt)
         users = result.scalars().all()
-    return users
+    return [_user_to_dict(u) for u in users]
     
 
 

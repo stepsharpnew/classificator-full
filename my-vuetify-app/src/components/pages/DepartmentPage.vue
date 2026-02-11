@@ -61,6 +61,7 @@
               size="big"
             >
               {{ user.first_name }} {{ user.last_name }}
+              <span v-if="user.role" class="ml-1 text-caption">({{ roleDisplayName(user.role) }})</span>
             </v-chip>
           </v-col>
           <v-divider></v-divider>
@@ -96,6 +97,14 @@ export default {
   },
 
   methods: {
+    roleDisplayName(role) {
+      if (!role) return '';
+      const r = String(role).toLowerCase();
+      if (r === 'chief_engineer') return 'Главный инженер';
+      if (r === 'mol') return 'МОЛ';
+      if (r === 'head') return 'Руководитель';
+      return role;
+    },
     async loadUsers() {
       try {
         const res = await axios.get('/api/users');
