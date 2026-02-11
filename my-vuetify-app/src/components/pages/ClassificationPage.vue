@@ -198,8 +198,14 @@
                 </template>
                 <template v-else>
                   <!-- edit button removed per request; only delete remains -->
-                  <span v-if="row.staffNumber" class="equipment-staff-number">{{ row.staffNumber }}</span>
-                  <span class="equipment-fnn">{{ row.fnn }}</span>
+                  <span v-if="row.staffNumber" class="d-flex align-center ga-1">
+                    <span class="equipment-label">Табель</span>
+                    <span class="equipment-staff-number">{{ row.staffNumber }}</span>
+                  </span>
+                  <span class="d-flex align-center ga-1">
+                    <span class="equipment-label">ФНН</span>
+                    <span class="equipment-fnn">{{ row.fnn }}</span>
+                  </span>
                   <v-btn v-if="canEditClassification" icon x-small @click="deleteItem(row)">
                     <v-icon x-small>mdi-delete</v-icon>
                   </v-btn>
@@ -823,6 +829,14 @@ export default {
 }
 .equipment-fnn-field {
   width: 300px;
+}
+
+/* слегка заметные лейблы для записей типа оборудования */
+.equipment-label {
+  font-size: 0.7rem;
+  color: rgba(0, 0, 0, 0.42);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .equipment-fnn {
