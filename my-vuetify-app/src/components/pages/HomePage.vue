@@ -94,6 +94,14 @@
           >
         </v-col>
       </v-row>
+      <div class="d-flex align-center mt-3 mb-2 px-2 text-body2">
+        <span class="text-medium-emphasis">
+          В работе и в ремонте: <strong>{{ totalInWorkRepair }}</strong>
+        </span>
+        <span class="ml-4 text-medium-emphasis">
+          Отображается: <strong>{{ items.length }}</strong>
+        </span>
+      </div>
       <v-card-text class="pa-0 ma-0" v-if="items.length > 0">
         <v-row
           class="text-center font-weight-bold mt-4 bg-grey-lighten-3 rounded-t"
@@ -350,6 +358,7 @@ export default {
       suggestionLoading: false,
       suggestionTimeout: null,
       totalCount: 0,
+      totalInWorkRepair: 0,
       itemsPerPage: 20,
       userDepartmentId: '',
       canChooseDepartment: false,
@@ -415,6 +424,7 @@ export default {
 
       this.items = response.data.equipments || [];
       this.totalCount = response.data.total_count || 0;
+      this.totalInWorkRepair = response.data.total_in_work_repair ?? 0;
     },
     openChildrenModal(components) {
       this.selectedComponents = components;
@@ -556,11 +566,13 @@ export default {
   font-size: 1.05em;
 }
 
-/* столбец нумерации — компактно и аккуратно */
 .col-number-header,
 .col-number {
   font-variant-numeric: tabular-nums;
   color: rgba(0, 0, 0, 0.55);
+  flex: 0 0 2rem;
+  min-width: 2rem;
+  max-width: 2rem;
 }
 .col-number {
   font-size: 0.9rem;

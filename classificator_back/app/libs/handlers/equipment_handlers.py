@@ -54,6 +54,18 @@ async def get_equipments(search, equipmentType, department, year, type, limit=10
         not_a_child = not_(exists().where(equipment_components.c.component_id == Equipment.id))
         stmt = stmt.where(not_a_child)  # Добавляем условие к основному запросу
 
+        # Общее число оборудования «в работе» и «в ремонте» (отдельный запрос, только для не-архива)
+        total_in_work_repair = 0
+        if not archive:
+            stmt_active = select(Equipment).where(
+                and_(
+                    or_(Equipment.status == 'at_work', Equipment.status == 'repair'),
+                    not_a_child,
+                )
+            )
+            count_active = await session.execute(select(func.count()).select_from(stmt_active.subquery()))
+            total_in_work_repair = count_active.scalar() or 0
+
         if not archive:
             if search:
                 search = escape_search_string(search) 
@@ -188,8 +200,12 @@ async def get_equipments(search, equipmentType, department, year, type, limit=10
         print('\n')
         print(f"The task took {elapsed_time:.2f} seconds to complete.")
         print('\n')
-        return {'equipments': equipments, 'total_count': total_count}
-    
+        return {
+            'equipments': equipments,
+            'total_count': total_count,
+            'total_in_work_repair': total_in_work_repair,
+        }
+
 async def get_archive_equipments(search, equipmentType, department, year, type, limit=10, offset=0):
     async with async_session() as session:
 
