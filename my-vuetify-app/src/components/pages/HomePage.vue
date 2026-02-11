@@ -99,11 +99,11 @@
           class="text-center font-weight-bold mt-4 bg-grey-lighten-3 rounded-t"
           style="font-size: 0.98rem; height: 100px"
         >
-          <!-- <v-col
+          <v-col
             cols="1"
-            class="d-flex justify-center align-center text-no-wrap"
-            >№ п/п</v-col
-          > -->
+            class="d-flex justify-center align-center text-no-wrap col-number-header"
+            >№</v-col
+          >
           <v-col
             cols="1"
             class="d-flex justify-center align-center text-no-wrap"
@@ -115,8 +115,8 @@
             >Зав. №</v-col
           >
           <v-col
-            cols="2"
-            class="d-flex justify-center align-center text-no-wrap"
+            cols="1"
+            class="d-flex justify-center align-center text-no-wrap text-truncate"
             >Наименование</v-col
           >
           <v-col
@@ -169,9 +169,9 @@
           class="text-center align-center py-3 border-b"
           :class="item.components.length ? 'bg-blue-lighten-5' : 'bg-white'"
         >
-          <!-- <v-col cols="1" class="d-flex justify-center align-center">{{
-            1 + index + (page - 1) * 10
-          }}</v-col> -->
+          <v-col cols="1" class="d-flex justify-center align-center col-number">
+            {{ (page - 1) * itemsPerPage + index + 1 }}
+          </v-col>
           <v-col cols="1" class="d-flex justify-center align-center">
             <span
               v-if="item.components.length"
@@ -190,8 +190,8 @@
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.factory_number }}
           </v-col>
-          <v-col cols="2" class="d-flex justify-center align-center">
-            <span v-if="item.eq_type?.name">
+          <v-col cols="1" class="d-flex justify-center align-center text-truncate">
+            <span v-if="item.eq_type?.name" class="text-truncate d-inline-block" style="max-width: 100%">
               <template v-if="getClassificatorPath(item.eq_type)">
                 <span class="classificator-number">
                   {{ getClassificatorPath(item.eq_type) }}
@@ -554,5 +554,18 @@ export default {
   color: #1976d2;
   margin-right: 4px;
   font-size: 1.05em;
+}
+
+/* столбец нумерации — компактно и аккуратно */
+.col-number-header,
+.col-number {
+  font-variant-numeric: tabular-nums;
+  color: rgba(0, 0, 0, 0.55);
+}
+.col-number {
+  font-size: 0.9rem;
+}
+.col-number-header {
+  font-size: 0.9rem;
 }
 </style>

@@ -398,6 +398,7 @@ export default {
   },
   methods: {
     openCreateDialog() {
+      this.notification = { show: false, message: '', type: 'success' };
       this.action = 'Создание';
       const defaultDept = this.canChooseDepartment ? '' : (this.userDepartmentId || '');
       this.formData = {
@@ -543,6 +544,7 @@ export default {
         this.parentSuggestions = [];
         this.childSuggestions = [];
         this.suggestionLoading = false;
+        this.notification = { show: false, message: '', type: 'success' };
         // Сбрасываем formData
         this.formData = {
           department_id: '',
