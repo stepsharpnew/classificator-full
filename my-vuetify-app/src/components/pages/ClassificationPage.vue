@@ -288,9 +288,7 @@ export default {
                   key: `eq-${childNode.id}`,
                   id: childNode.id,
                   name: childNode.name,
-                  displayName: `${childNode.fullPath || childNode.parentPath} ${
-                    childNode.name
-                  }`.trim(),
+                  displayName: childNode.name || '',
                   isEquipment: true,
                   equipmentType: childNode.equipmentType,
                   depth: depth + 1,
@@ -409,17 +407,16 @@ export default {
         }
       }
 
-      // attach equipment nodes (equipment keyed by their GUID id)
+      // attach equipment nodes (equipment keyed by their GUID id), sorted by name
       for (const it of items) {
         if (!it || !it.path) continue;
         const catNode = m.get(it.path);
         if (!catNode) continue;
-        const eqs = Array.isArray(it.equipments) ? it.equipments : [];
-        for (const [index, eq] of eqs.entries()) {
+        const eqs = (Array.isArray(it.equipments) ? it.equipments : [])
+          .slice()
+          .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'));
+        for (const eq of eqs) {
           const eqId = eq.id;
-
-          // добавляем новый путь
-          const fullPath = `${it.path}.${index + 1}`;
 
           const eqNode = markRaw({
             id: eqId,
@@ -427,7 +424,6 @@ export default {
             fnn: eq.fnn,
             isEquipment: true,
             parentPath: it.path,
-            fullPath, // теперь у оборудования есть собственный путь
             equipmentType: eq.type,
             equipmentData: eq,
           });
@@ -435,7 +431,7 @@ export default {
           m.set(eqId, eqNode);
           catNode.childrenPaths.push(eqId);
         }
-        catNode.equipmentCount = (eqs || []).length;
+        catNode.equipmentCount = eqs.length;
       }
 
       this.nodeMap = m;

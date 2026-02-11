@@ -104,8 +104,8 @@
                         v-if="item.raw.classificator_path"
                         class="text-grey-darken-1 font-weight-medium"
                       >
-                        {{ item.raw.classificator_path }}
-                      </span>
+                        {{ item.raw.classificator_path}}
+                      </span>&ensp;
                       <span v-if="item.raw.classificator_path && item.raw.name">
                       </span>
                       <span>{{ item.raw.name }}</span>
@@ -190,7 +190,7 @@
                             class="text-grey-darken-1 font-weight-medium"
                           >
                             {{ item.raw.classificator_path }}
-                          </span>
+                          </span>&ensp;
                           <span
                             v-if="item.raw.classificator_path && item.raw.name"
                           >
