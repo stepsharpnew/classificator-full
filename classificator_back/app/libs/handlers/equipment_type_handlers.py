@@ -14,7 +14,7 @@ settings = get_settings()
 async_session = settings.async_session
 
 
-async def create_equipment_type(name: str, classificator_path: str, type: Optional[str] = None, fnn: str = None):
+async def create_equipment_type(name: str, classificator_path: str, type: Optional[str] = None, fnn: str = None, staff_number: str = None):
     async with async_session() as session:
         query = select(exists(Classificator).where(Classificator.path == classificator_path))
         result = await session.execute(query)
@@ -25,7 +25,7 @@ async def create_equipment_type(name: str, classificator_path: str, type: Option
         if not await check_descendants(classificator_path):
             return False, f"У классификатора есть потомки"
         try:
-          session.add(EquipmentType(name=name, classificator_path=classificator_path, type=type, fnn=fnn))
+          session.add(EquipmentType(name=name, classificator_path=classificator_path, type=type, fnn=fnn, staff_number=staff_number))
           await session.commit()
           return True, None
         except Exception as e:
@@ -54,7 +54,7 @@ async def get_equipment_type_by_path(path: str):
         return equipment
 
 
-async def update_equipment_type(equipment_id: UUID, name: str = None, fnn: str = None, type: str = None):
+async def update_equipment_type(equipment_id: UUID, name: str = None, fnn: str = None, type: str = None, staff_number: str = None):
     async with async_session() as session:
         try:
             query = select(EquipmentType).where(EquipmentType.id == equipment_id)
@@ -65,6 +65,7 @@ async def update_equipment_type(equipment_id: UUID, name: str = None, fnn: str =
             equipment.name = name
             equipment.fnn = fnn
             equipment.type = type if type else None
+            equipment.staff_number = staff_number if staff_number else None
             await session.commit()
             return True, None
         except Exception as e:

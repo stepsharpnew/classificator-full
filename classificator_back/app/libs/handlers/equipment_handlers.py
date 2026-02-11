@@ -70,6 +70,10 @@ async def get_equipments(search, equipmentType, department, year, type, limit=10
                         func.lower(EquipmentType.fnn).like(func.lower(search_pattern))
                     )
                 parent_conditions.append(eq_type_fnn_condition)
+                eq_type_staff_number_condition = Equipment.eq_type.has(
+                        func.lower(EquipmentType.staff_number).like(func.lower(search_pattern))
+                    )
+                parent_conditions.append(eq_type_staff_number_condition)
 
                 child_exists = exists().where(
                 and_(
@@ -82,6 +86,9 @@ async def get_equipments(search, equipmentType, department, year, type, limit=10
                             func.lower(Equipment.comment).like(func.lower(search_pattern)),
                             Equipment.eq_type.has(
                                 func.lower(EquipmentType.fnn).like(func.lower(search_pattern))
+                            ),
+                            Equipment.eq_type.has(
+                                func.lower(EquipmentType.staff_number).like(func.lower(search_pattern))
                             )
                         )
                     )
@@ -102,7 +109,12 @@ async def get_equipments(search, equipmentType, department, year, type, limit=10
                     func.lower(Equipment.act_of_decommissioning).like(func.lower(search_pattern)),
                     func.lower(Equipment.transfer_department).like(func.lower(search_pattern)),
                     func.lower(Equipment.comment).like(func.lower(search_pattern)),
-                    
+                    Equipment.eq_type.has(
+                        func.lower(EquipmentType.fnn).like(func.lower(search_pattern))
+                    ),
+                    Equipment.eq_type.has(
+                        func.lower(EquipmentType.staff_number).like(func.lower(search_pattern))
+                    ),
                 ]
 
                 # Ищем в дочерних элементах (через подзапрос EXISTS и таблицу ассоциаций)
@@ -115,7 +127,12 @@ async def get_equipments(search, equipmentType, department, year, type, limit=10
                             func.lower(Equipment.factory_number).like(func.lower(search_pattern)),
                             func.lower(Equipment.act_of_receiving).like(func.lower(search_pattern)),
                             func.lower(Equipment.comment).like(func.lower(search_pattern)),
-                            
+                            Equipment.eq_type.has(
+                                func.lower(EquipmentType.fnn).like(func.lower(search_pattern))
+                            ),
+                            Equipment.eq_type.has(
+                                func.lower(EquipmentType.staff_number).like(func.lower(search_pattern))
+                            )
                         )
                     )
                 )

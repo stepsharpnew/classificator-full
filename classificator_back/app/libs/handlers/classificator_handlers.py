@@ -48,7 +48,7 @@ async def get_classification(path: str = None):
                 "id": classificator.path,
                 "name": classificator.name,
                 "path": classificator.path,
-                "equipments": [{"id": item.id, "name": item.name, 'type': item.type, 'fnn': item.fnn} for item in classificator.equipments_type]
+                "equipments": [{"id": item.id, "name": item.name, 'type': item.type, 'fnn': item.fnn, 'staff_number': item.staff_number} for item in classificator.equipments_type]
             })
         return Response(data=result, success=True, error=None)
 

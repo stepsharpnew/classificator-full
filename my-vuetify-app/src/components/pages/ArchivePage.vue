@@ -25,7 +25,7 @@
       <v-row class="pa-3 bg-blue-lighten-4 rounded gap-x-4">
         <v-col cols="2">
           <v-text-field
-            label="Поиск (Инв., Зав., ФНН, Акт)"
+            label="Поиск (Инв., Зав., ФНН, Табель, Акт)"
             variant="outlined"
             density="comfortable"
             hide-details

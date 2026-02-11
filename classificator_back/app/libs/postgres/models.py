@@ -41,6 +41,7 @@ class EquipmentType(Base):
     classificator = relationship("Classificator", back_populates="equipments_type")
     equipment = relationship("Equipment", back_populates='eq_type', cascade="all, delete-orphan")
     fnn = Column(String)
+    staff_number = Column(String, nullable=True)
 
 class Classificator(Base):
     __tablename__ = 'classificator'

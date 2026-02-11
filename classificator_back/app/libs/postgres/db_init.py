@@ -22,6 +22,12 @@ if __name__=='__main__':
     with engine.begin() as connection:
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS ltree"))    
     Base.metadata.create_all(engine)
+
+    # Миграция: добавить колонку staff_number в equipment_type (если ещё не существует)
+    with engine.begin() as connection:
+        connection.execute(text("""
+            ALTER TABLE equipment_type ADD COLUMN IF NOT EXISTS staff_number VARCHAR
+        """))
     session = Session(engine)
     session.commit()
 

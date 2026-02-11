@@ -55,17 +55,17 @@ services:
   #   ports:
   #     - 8081:8080
 
-  # alembic:
-  #   image: alembic:latest
-  #   container_name: "alembic"
-  #   restart: "no"
-  #   environment:
-  #     POSTGRESQL_DB: ${POSTGRESQL_DB}
-  #     POSTGRESQL_USER: ${POSTGRESQL_USER}
-  #     POSTGRESQL_PASS: ${POSTGRESQL_PASS}
-  #   volumes:
-  #     - "${PWD}/volumes/alembic/base/versions:/service/base/versions"
-  #   entrypoint: ["python", "-m", "app"]
+  alembic:
+    image: alembic:latest
+    container_name: "alembic"
+    restart: "no"
+    environment:
+      POSTGRESQL_DB: ${POSTGRESQL_DB}
+      POSTGRESQL_USER: ${POSTGRESQL_USER}
+      POSTGRESQL_PASS: ${POSTGRESQL_PASS}
+    volumes:
+      - "${PWD}/volumes/alembic/base/versions:/service/classificator/versions"
+    entrypoint: ["python", "-m", "app"]
 
   # nginx:
   #   image: nginx:latest

@@ -127,7 +127,7 @@
 
                 <template v-if="isEditing(row.id)">
                   <v-row dense align="center" class="w-100" fluid>
-                    <v-col cols="7">
+                    <v-col cols="5">
                       <v-text-field
                         v-model="editBuffer[row.id].name"
                         dense
@@ -143,6 +143,16 @@
                         dense
                         hide-details
                         label="ФНН"
+                        @keyup.enter="saveNode(row)"
+                      />
+                    </v-col>
+
+                    <v-col cols="2">
+                      <v-text-field
+                        v-model="editBuffer[row.id].staff_number"
+                        dense
+                        hide-details
+                        label="Табель"
                         @keyup.enter="saveNode(row)"
                       />
                     </v-col>
@@ -188,6 +198,7 @@
                 </template>
                 <template v-else>
                   <!-- edit button removed per request; only delete remains -->
+                  <span v-if="row.staffNumber" class="equipment-staff-number">{{ row.staffNumber }}</span>
                   <span class="equipment-fnn">{{ row.fnn }}</span>
                   <v-btn v-if="canEditClassification" icon x-small @click="deleteItem(row)">
                     <v-icon x-small>mdi-delete</v-icon>
@@ -293,6 +304,7 @@ export default {
                   equipmentType: childNode.equipmentType,
                   depth: depth + 1,
                   fnn: childNode.fnn,
+                  staffNumber: childNode.staffNumber,
                 });
               } else {
                 dfs(childId, depth + 1);
@@ -333,8 +345,9 @@ export default {
         let res;
         if (formData.typeModal === 'equipment') {
           const typeParam = formData.type ? `&type=${formData.type}` : '';
+          const staffParam = formData.staff_number ? `&staff_number=${encodeURIComponent(formData.staff_number)}` : '';
           res = await axios.post(
-            `/api/equipment-type?path=${formData.path}&name=${formData.name}${typeParam}&fnn=${formData.fnn || ''}`,
+            `/api/equipment-type?path=${formData.path}&name=${formData.name}${typeParam}&fnn=${formData.fnn || ''}${staffParam}`,
           );
         } else {
           res = await axios.post(
@@ -422,6 +435,7 @@ export default {
             id: eqId,
             name: this.sanitizeName(eq.name || eq.id),
             fnn: eq.fnn,
+            staffNumber: eq.staff_number,
             isEquipment: true,
             parentPath: it.path,
             equipmentType: eq.type,
@@ -480,6 +494,7 @@ export default {
         this.editBuffer[row.id] = {
           name: row.name,
           fnn: row.fnn || '',
+          staff_number: row.staffNumber || '',
           path: row.isEquipment ? '' : row.id, // путь только для категорий
           type: row.isEquipment ? (row.equipmentType || '') : '',
         };
@@ -502,7 +517,7 @@ export default {
 
     async saveNode(row) {
       const id = row.id;
-      const { name: newName, fnn: newFnn, path: newPath, type: newType } = this.editBuffer[id];
+      const { name: newName, fnn: newFnn, path: newPath, type: newType, staff_number: newStaffNumber } = this.editBuffer[id];
       if (!newName) {
         this.showNotification('Поле "Наименование" не должно быть пустым', 'error');
         return;
@@ -544,10 +559,14 @@ export default {
 
       const prevName = node.name;
       const prevFnn = node.fnn;
+      const prevStaffNumber = node.staffNumber;
       const prevType = node.equipmentType;
       node.name = newName;
       node.fnn = newFnn;
-      if (node.isEquipment) node.equipmentType = newType || null;
+      if (node.isEquipment) {
+        node.equipmentType = newType || null;
+        node.staffNumber = newStaffNumber || null;
+      }
       this.version++;
       this.cancelEdit(id);
 
@@ -555,12 +574,13 @@ export default {
         let res;
         if (node.isEquipment) {
           const typeParam = newType != null ? `&type=${encodeURIComponent(newType)}` : '';
+          const staffParam = newStaffNumber != null ? `&staff_number=${encodeURIComponent(newStaffNumber)}` : '';
           res = await axios.put(
             `/api/equipment-type?id=${encodeURIComponent(
               id,
             )}&name=${encodeURIComponent(newName)}&fnn=${encodeURIComponent(
               newFnn,
-            )}${typeParam}`,
+            )}${typeParam}${staffParam}`,
           );
         } else {
           const path = node.id;
@@ -576,7 +596,10 @@ export default {
           const msg = res.data.error?.msg || res.data.error || 'Ошибка при сохранении';
           node.name = prevName;
           node.fnn = prevFnn;
-          if (node.isEquipment) node.equipmentType = prevType;
+          if (node.isEquipment) {
+            node.equipmentType = prevType;
+            node.staffNumber = prevStaffNumber;
+          }
           this.version++;
           this.showNotification(msg, 'error');
         } else {
@@ -587,7 +610,10 @@ export default {
         console.error('saveNode error', err);
         node.name = prevName;
         node.fnn = prevFnn;
-        if (node.isEquipment) node.equipmentType = prevType;
+        if (node.isEquipment) {
+          node.equipmentType = prevType;
+          node.staffNumber = prevStaffNumber;
+        }
         this.version++;
         const detail = err.response?.data?.error?.msg || 'Ошибка при сохранении';
         this.showNotification(`${detail}. Данные восстановлены.`, 'error');
@@ -805,5 +831,13 @@ export default {
   min-width: 120px;
   text-align: right;
   margin-right: 50px;
+}
+
+.equipment-staff-number {
+  font-size: 1rem;
+  color: #ff9800;
+  min-width: 80px;
+  text-align: right;
+  margin-right: 20px;
 }
 </style>

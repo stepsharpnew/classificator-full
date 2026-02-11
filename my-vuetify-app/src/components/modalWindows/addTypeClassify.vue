@@ -46,6 +46,14 @@
             outlined
             required
           />
+          <v-text-field
+            v-if="typeModal != 'classification'"
+            v-model="formData.staff_number"
+            label="Номер табеля к штату"
+            placeholder="Введите номер табеля (необязательно)"
+            dense
+            outlined
+          />
         </v-form>
       </v-card-text>
 
@@ -83,6 +91,7 @@ export default {
         type: '',
         name: '',
         fnn: '',
+        staff_number: '',
       },
       types: [
         { label: 'ССИУС', value: 'ssius' },
@@ -115,7 +124,7 @@ export default {
       this.isOpen = false;
     },
     resetForm() {
-      this.formData = { path: '', type: '', name: '', fnn: '' };
+      this.formData = { path: '', type: '', name: '', fnn: '', staff_number: '' };
     },
   },
 };

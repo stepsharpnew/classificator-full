@@ -26,7 +26,7 @@ async def get_equipment_router(name: str = None):
 
 
 @equipment_type_router.post('/equipment-type')
-async def create_equipment_router(path: str, name: str, type: Optional[str] = None, fnn: str = None, credentials: HTTPAuthorizationCredentials = Security(security)):
+async def create_equipment_router(path: str, name: str, type: Optional[str] = None, fnn: str = None, staff_number: Optional[str] = None, credentials: HTTPAuthorizationCredentials = Security(security)):
     response = await Auth.decode_access_token(credentials.credentials)
     if not response.success:
         raise HTTPException(status_code=401, detail=response.error.get('msg'))
@@ -39,7 +39,7 @@ async def create_equipment_router(path: str, name: str, type: Optional[str] = No
             type_value = type_enum.value
         except ValueError:
             type_value = None
-    success, error = await create_equipment_type(classificator_path=path, name=name, type=type_value, fnn=fnn)
+    success, error = await create_equipment_type(classificator_path=path, name=name, type=type_value, fnn=fnn, staff_number=staff_number)
     if not success:
         return Response(data=None, success=False, error={'msg': error})
     return Response(data='Тип оборудования создан', success=True, error=None)
@@ -59,7 +59,7 @@ async def delete_equipment_router(id: UUID, credentials: HTTPAuthorizationCreden
 
 
 @equipment_type_router.put('/equipment-type')
-async def update_equipment_router(id: UUID, name: str, fnn: str, type: Optional[str] = None, credentials: HTTPAuthorizationCredentials = Security(security)):
+async def update_equipment_router(id: UUID, name: str, fnn: str, type: Optional[str] = None, staff_number: Optional[str] = None, credentials: HTTPAuthorizationCredentials = Security(security)):
     response = await Auth.decode_access_token(credentials.credentials)
     if not response.success:
         raise HTTPException(status_code=401, detail=response.error.get('msg'))
@@ -72,7 +72,7 @@ async def update_equipment_router(id: UUID, name: str, fnn: str, type: Optional[
             type_value = type_enum.value
         except ValueError:
             type_value = None
-    success, error = await update_equipment_type(equipment_id=id, name=name, fnn=fnn, type=type_value)
+    success, error = await update_equipment_type(equipment_id=id, name=name, fnn=fnn, type=type_value, staff_number=staff_number)
     if not success:
         return Response(data=None, success=False, error={'msg': error})
     return Response(data='Тип оборудования обновлён', success=True, error=None)
