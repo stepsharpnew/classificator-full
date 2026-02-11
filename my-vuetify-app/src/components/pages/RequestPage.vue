@@ -5,6 +5,8 @@
       <v-col cols="auto">
         <EquipmentCreateDialog
           :departments="departments"
+          :user-department-id="userDepartmentId"
+          :can-choose-department="canChooseDepartment"
           @created="refreshEquipmentList"
           :item="selectedItem"
           :mode="selectedMode"
@@ -323,6 +325,8 @@ export default {
       suggestions: [],
       suggestionLoading: false,
       suggestionTimeout: null,
+      userDepartmentId: '',
+      canChooseDepartment: false,
     };
   },
   computed: {
@@ -440,6 +444,18 @@ export default {
     },
   },
   async mounted() {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const user = payload?.user || {};
+        this.userDepartmentId = user.department_id != null ? String(user.department_id) : '';
+        this.canChooseDepartment = user.role === 'chief_engineer' || user.is_superuser === true;
+      } catch (e) {
+        this.userDepartmentId = '';
+        this.canChooseDepartment = false;
+      }
+    }
     await this.fetchData();
 
     //     this.types = [...new Set(this.items.map((item) => item.eq_type.type))];

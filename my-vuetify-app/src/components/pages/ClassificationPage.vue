@@ -4,10 +4,18 @@
 
     <v-card class="classification-card pa-4">
       <v-card class="d-flex w-100 pa-4 ga-4 justify-start">
-        <v-btn size="large" class="btn-top" @click="handleAddClassification"
+        <v-btn
+          v-if="canEditClassification"
+          size="large"
+          class="btn-top"
+          @click="handleAddClassification"
           >Добавить классфикацию</v-btn
         >
-        <v-btn size="large" class="btn-top" @click="handleAddEquipment"
+        <v-btn
+          v-if="canEditClassification"
+          size="large"
+          class="btn-top"
+          @click="handleAddEquipment"
           >Добавить тип оборудования</v-btn
         >
         <AddTypeClassify
@@ -34,7 +42,7 @@
               <div
                 class="row-left"
                 @click.stop="toggleOpen(row.id)"
-                @dblclick.stop="startEdit(row)"
+                @dblclick.stop="canEditClassification && startEdit(row)"
               >
                 <v-icon small class="mr-2">
                   {{ isOpen(row.id) ? 'mdi-folder-open' : 'mdi-folder' }}
@@ -101,7 +109,7 @@
 
             <!-- equipment node -->
             <template v-else>
-              <div class="d-flex w-100 mr-4" @dblclick.stop="startEdit(row)">
+              <div class="d-flex w-100 mr-4" @dblclick.stop="canEditClassification && startEdit(row)">
                 <v-icon
                   small
                   color="primary"
@@ -181,7 +189,7 @@
                 <template v-else>
                   <!-- edit button removed per request; only delete remains -->
                   <span class="equipment-fnn">{{ row.fnn }}</span>
-                  <v-btn icon x-small @click="deleteItem(row)">
+                  <v-btn v-if="canEditClassification" icon x-small @click="deleteItem(row)">
                     <v-icon x-small>mdi-delete</v-icon>
                   </v-btn>
                 </template>
@@ -241,6 +249,7 @@ export default {
         message: '',
         type: 'success',
       },
+      canEditClassification: false,
     };
   },
 
@@ -654,6 +663,16 @@ export default {
   },
 
   created() {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const user = payload?.user || {};
+        this.canEditClassification = user.role === 'chief_engineer' || user.is_superuser === true;
+      } catch (e) {
+        this.canEditClassification = false;
+      }
+    }
     this.fetchClassification();
   },
 };

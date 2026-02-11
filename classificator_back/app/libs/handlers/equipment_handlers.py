@@ -188,10 +188,17 @@ async def get_archive_equipments(search, equipmentType, department, year, type, 
     
 
 async def create_equipment(equipment: EquipmentCreateSchema, user):
-    # if user['department_id'] == 'admin':
-    #     raise HTTPException(status_code=400, detail='Админ не может создавать оборудование')
-    # if user['role'] != 'mol':
-    #     raise HTTPException(status_code=400, detail='Только МОЛ может создавать оборудование')
+    user_dept = user.get('department_id')
+    role = (user.get('role') or '')
+    role_str = str(role).strip().lower() if role else ''
+    is_superuser = user.get('is_superuser') in (True, 'true', 1)
+    can_any_department = is_superuser or role_str == 'chief_engineer'
+    if user_dept is not None and not can_any_department:
+        if str(equipment.department_id) != str(user_dept):
+            raise HTTPException(
+                status_code=400,
+                detail='Нельзя создавать оборудование не в своём отделении',
+            )
     async with async_session() as session:
 
         query = select(Equipment).where(Equipment.inventory_number == equipment.inventory_number)

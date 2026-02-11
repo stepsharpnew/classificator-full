@@ -1,24 +1,32 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Security
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.libs.auth.auth_handler import Auth
 from app.libs.handlers.classificator_handlers import create_classification, delete_classification, get_classification, update_classification, get_classification_leaf, get_classification_tree, rename_classification_path
-from fastapi import Security
-classificator_router = APIRouter()
 
+classificator_router = APIRouter()
 security = HTTPBearer()
+
+
+def _can_edit_classification(user: dict) -> bool:
+    if not user:
+        return False
+    return user.get('role') == 'chief_engineer' or user.get('is_superuser') is True
+
 
 @classificator_router.get('/classification')
 async def get_classification_router(path: str = None, credentials: HTTPAuthorizationCredentials = Security(security)):
     response = await Auth.decode_access_token(credentials.credentials)
     if not response.success:
         raise HTTPException(status_code=401, detail=response.error.get('msg'))
-    return(await get_classification(path=path))
+    return await get_classification(path=path)
+
 
 @classificator_router.get('/classification-leaf')
-async def get_classification_router(path: str = None):
-    return(await get_classification_leaf())
+async def get_classification_leaf_router(path: str = None):
+    return await get_classification_leaf()
+
 
 @classificator_router.get('/classification-with-equipment')
 async def get_classification_with_equipment_router():
@@ -26,20 +34,40 @@ async def get_classification_with_equipment_router():
 
 
 @classificator_router.post('/classification')
-async def create_classificator_router(path: str, name: str):
+async def create_classificator_router(path: str, name: str, credentials: HTTPAuthorizationCredentials = Security(security)):
+    response = await Auth.decode_access_token(credentials.credentials)
+    if not response.success:
+        raise HTTPException(status_code=401, detail=response.error.get('msg'))
+    if not _can_edit_classification(response.data.get('user')):
+        raise HTTPException(status_code=403, detail='Редактирование классификации доступно только главному инженеру')
     return await create_classification(path=path, name=name)
 
 
 @classificator_router.put('/classification')
-async def update_classificator_router(path: str, name: str):
+async def update_classificator_router(path: str, name: str, credentials: HTTPAuthorizationCredentials = Security(security)):
+    response = await Auth.decode_access_token(credentials.credentials)
+    if not response.success:
+        raise HTTPException(status_code=401, detail=response.error.get('msg'))
+    if not _can_edit_classification(response.data.get('user')):
+        raise HTTPException(status_code=403, detail='Редактирование классификации доступно только главному инженеру')
     return await update_classification(path=path, name=name)
 
 
 @classificator_router.put('/classification/rename')
-async def rename_classificator_router(old_path: str, new_path: str):
+async def rename_classificator_router(old_path: str, new_path: str, credentials: HTTPAuthorizationCredentials = Security(security)):
+    response = await Auth.decode_access_token(credentials.credentials)
+    if not response.success:
+        raise HTTPException(status_code=401, detail=response.error.get('msg'))
+    if not _can_edit_classification(response.data.get('user')):
+        raise HTTPException(status_code=403, detail='Редактирование классификации доступно только главному инженеру')
     return await rename_classification_path(old_path=old_path, new_path=new_path)
-    
+
 
 @classificator_router.delete('/classification')
-async def delete_classificator_router(path: str):
+async def delete_classificator_router(path: str, credentials: HTTPAuthorizationCredentials = Security(security)):
+    response = await Auth.decode_access_token(credentials.credentials)
+    if not response.success:
+        raise HTTPException(status_code=401, detail=response.error.get('msg'))
+    if not _can_edit_classification(response.data.get('user')):
+        raise HTTPException(status_code=403, detail='Редактирование классификации доступно только главному инженеру')
     await delete_classification(path=path)

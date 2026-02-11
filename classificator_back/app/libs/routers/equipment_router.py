@@ -6,7 +6,7 @@ from fastapi import Body, Response, HTTPException
 from app.libs.auth.auth_handler import Auth
 from app.libs.handlers.equipment_handlers import *
 from app.settings import Settings
-from app.schemas.schema import EquipmentCreateSchema
+from app.schemas.schema import EquipmentCreateSchema, Response
 from fastapi import Path
 settings = Settings()
 
@@ -28,7 +28,11 @@ async def equipment_create_router(equipment: EquipmentCreateSchema, credentials:
     response = await Auth.decode_access_token(credentials.credentials)
     if not response.success:
         raise HTTPException(status_code=401, detail=response.error.get('msg'))
-    return await create_equipment(equipment=equipment, user=response.data['user'])
+    try:
+        result = await create_equipment(equipment=equipment, user=response.data['user'])
+        return Response(data={'id': str(result.id)}, success=True, error=None)
+    except HTTPException as exc:
+        return Response(data=None, success=False, error={'msg': exc.detail})
 
 @equipment_router.put('/equipment')
 async def equipment_update_router(data: EquipmentUpdateDataSchema, credentials: HTTPAuthorizationCredentials = Security(security)):

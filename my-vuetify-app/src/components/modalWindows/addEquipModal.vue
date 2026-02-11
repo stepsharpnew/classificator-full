@@ -53,6 +53,7 @@
                 label="Отделение"
                 outlined
                 dense
+                :disabled="isCreateMode && !!userDepartmentId && !canChooseDepartment"
                 :rules="[(v) => !!v || 'Обязательное поле']"
               ></v-select>
             </v-col>
@@ -87,7 +88,7 @@
                 hide-details
                 item-title="displayName"
                 item-value="id"
-                :items="formattedParentSuggestions"
+                :items="parentSuggestionsWithSelected"
                 :loading="suggestionLoading"
                 no-filter
                 clearable
@@ -159,6 +160,7 @@
                     label="Отделение"
                     outlined
                     dense
+                    :disabled="isCreateMode && !!userDepartmentId && !canChooseDepartment"
                     :rules="[(v) => !!v || 'Обязательное поле']"
                   ></v-select>
                 </v-col>
@@ -166,7 +168,7 @@
                   <v-autocomplete
                     :rules="[(v) => !!v || 'Обязательное поле']"
                     v-model="child.type"
-                    :items="formattedChildSuggestions[idx] || []"
+                    :items="childSuggestionsWithSelected[idx] || formattedChildSuggestions[idx] || []"
                     item-title="displayName"
                     item-value="id"
                     :loading="childLoading[idx]"
@@ -251,16 +253,34 @@
         </div>
       </v-card-actions>
     </v-card>
+
+    <NotificationDialog
+      v-model="notification.show"
+      :message="notification.message"
+      :type="notification.type"
+    />
   </v-dialog>
 </template>
 
 <script>
 import axios from 'axios';
+import NotificationDialog from './NotificationDialog.vue';
+
 export default {
+  components: { NotificationDialog },
+
   props: {
     departments: {
       type: Array,
       required: true,
+    },
+    userDepartmentId: {
+      type: String,
+      default: '',
+    },
+    canChooseDepartment: {
+      type: Boolean,
+      default: false,
     },
     item: {
       type: Object,
@@ -312,9 +332,28 @@ export default {
         parent_id: '',
         childrens: [],
       },
+      notification: {
+        show: false,
+        message: '',
+        type: 'success',
+      },
+      selectedParentEquipmentType: null,
+      selectedChildEquipmentType: {},
     };
   },
   computed: {
+    isCreateMode() {
+      return this.mode !== 'edit';
+    },
+    parentSuggestionsWithSelected() {
+      const list = this.formattedParentSuggestions;
+      if (this.formData.type && this.selectedParentEquipmentType && this.selectedParentEquipmentType.id === this.formData.type) {
+        if (!list.some((i) => i.id === this.formData.type)) {
+          return [this.selectedParentEquipmentType, ...list];
+        }
+      }
+      return list;
+    },
     statusOptionsFiltered() {
       if (this.mode === 'edit') {
         return this.statusOptions;
@@ -341,12 +380,28 @@ export default {
       });
       return formatted;
     },
+    childSuggestionsWithSelected() {
+      const out = {};
+      const indices = (this.formData.childrens || []).map((_, idx) => idx);
+      indices.forEach((idx) => {
+        const list = this.formattedChildSuggestions[idx] || [];
+        const selected = this.selectedChildEquipmentType[idx];
+        const typeId = this.formData.childrens[idx]?.type;
+        if (typeId && selected && selected.id === typeId && !list.some((i) => i.id === typeId)) {
+          out[idx] = [selected, ...list];
+        } else {
+          out[idx] = list;
+        }
+      });
+      return out;
+    },
   },
   methods: {
     openCreateDialog() {
       this.action = 'Создание';
+      const defaultDept = this.canChooseDepartment ? '' : (this.userDepartmentId || '');
       this.formData = {
-        department_id: '',
+        department_id: defaultDept,
         inventory_number: '',
         factory_number: '',
         receiving_date: new Date().toISOString().substr(0, 10),
@@ -359,8 +414,13 @@ export default {
       };
       this.parentSuggestions = [];
       this.childSuggestions = [];
+      this.selectedParentEquipmentType = null;
+      this.selectedChildEquipmentType = {};
       this.deleted_equipments = [];
       this.dialog = true;
+    },
+    showNotification(message, type = 'success') {
+      this.notification = { show: true, message, type };
     },
     addChild() {
       this.formData.childrens.push({
@@ -373,6 +433,9 @@ export default {
         comment: '',
         parent_id: this.formData.parent_id || '',
         id: 0,
+        department_id: this.canChooseDepartment
+          ? (this.formData.department_id || '')
+          : (this.formData.department_id || this.userDepartmentId || ''),
       });
     },
     removeChild(index) {
@@ -387,16 +450,30 @@ export default {
       };
       try {
         if (this.mode == 'edit') {
-          const putUpdate = await axios.put('/api/equipment', body);
-          console.log(putUpdate);
-          console.log(body);
+          const res = await axios.put('/api/equipment', body);
+          if (res.data && res.data.success === false) {
+            const msg = res.data.error?.msg || res.data.error || 'Ошибка при сохранении';
+            this.showNotification(msg, 'error');
+            return;
+          }
+          this.showNotification('Оборудование обновлено');
+          this.$emit('created');
+          this.dialog = false;
         } else {
-          const response = await axios.post('/api/equipment', this.formData);
+          const res = await axios.post('/api/equipment', this.formData);
+          if (res.data && res.data.success === false) {
+            const msg = res.data.error?.msg || res.data.error || 'Ошибка при добавлении оборудования';
+            this.showNotification(msg, 'error');
+            return;
+          }
+          this.showNotification('Оборудование успешно добавлено');
+          this.$emit('created');
+          this.dialog = false;
         }
-        this.$emit('created');
-        this.dialog = false;
-      } catch (error) {
-        console.error('Ошибка при создании оборудования:', error);
+      } catch (err) {
+        console.error('Ошибка при сохранении оборудования:', err);
+        const msg = err.response?.data?.error?.msg || err.response?.data?.detail || 'Ошибка при сохранении оборудования';
+        this.showNotification(msg, 'error');
       } finally {
         this.loading = false;
       }
@@ -425,6 +502,8 @@ export default {
     },
     onParentSelect(val) {
       this.formData.type = val;
+      const item = this.formattedParentSuggestions.find((i) => i.id === val);
+      this.selectedParentEquipmentType = item ? { ...item } : null;
     },
 
     onChildSearch(val, idx) {
@@ -450,6 +529,9 @@ export default {
     },
     onChildSelect(val, idx) {
       this.formData.childrens[idx].type = val;
+      const list = this.formattedChildSuggestions[idx] || [];
+      const item = list.find((i) => i.id === val);
+      this.$set(this.selectedChildEquipmentType, idx, item ? { ...item } : null);
     },
   },
   mounted() {},
@@ -483,6 +565,13 @@ export default {
         // Проверяем, что item действительно изменился или это первое открытие
         // Также проверяем mode, чтобы открыть диалог даже если item тот же
         if (newItem && this.mode) {
+          const setSelectedParentFromEqType = (eqType) => {
+            if (!eqType) return;
+            const displayName = eqType.classificator_path
+              ? `${eqType.classificator_path} ${eqType.name || ''}`.trim()
+              : (eqType.name || '');
+            this.selectedParentEquipmentType = { ...eqType, id: eqType.id, displayName };
+          };
           if (this.mode == 'copy') {
             this.action = 'Создание';
             this.formData = {
@@ -491,10 +580,11 @@ export default {
               inventory_number: '',
               parent_id: newItem.id,
               id: 0,
+              department_id: this.userDepartmentId || newItem.department_id,
             };
-            // Загружаем данные типа оборудования для отображения в autocomplete
             if (newItem.eq_type && newItem.eq_type.id) {
               this.parentSuggestions = [newItem.eq_type];
+              setSelectedParentFromEqType(newItem.eq_type);
             }
           }
           if (this.mode == 'edit') {
@@ -503,25 +593,32 @@ export default {
             this.formData = {
               ...newItem,
             };
-            // Загружаем данные типа оборудования для отображения в autocomplete
             if (newItem.eq_type && newItem.eq_type.id) {
               this.parentSuggestions = [newItem.eq_type];
+              setSelectedParentFromEqType(newItem.eq_type);
             }
           }
           console.log(this.formData);
 
+          const childDeptId = (this.mode === 'copy' && this.userDepartmentId) ? this.userDepartmentId : undefined;
           this.formData.childrens = Array.isArray(newItem.components)
             ? newItem.components.map((c, idx) => {
-                // Загружаем данные типа оборудования для компонентов
                 if (c.eq_type && c.eq_type.id) {
                   this.childSuggestions[idx] = [c.eq_type];
+                  const displayName = c.eq_type.classificator_path
+                    ? `${c.eq_type.classificator_path} ${c.eq_type.name || ''}`.trim()
+                    : (c.eq_type.name || '');
+                  this.selectedChildEquipmentType = {
+                    ...this.selectedChildEquipmentType,
+                    [idx]: { ...c.eq_type, id: c.eq_type.id, displayName },
+                  };
                 }
                 return {
                   inventory_number: c.inventory_number || '',
                   factory_number: c.factory_number || '',
                   act_of_receiving: c.act_of_receiving || '',
                   status: c.status || 'at_work',
-                  department_id: c.department_id,
+                  department_id: childDeptId !== undefined ? childDeptId : c.department_id,
                   type: c.type || '',
                   receiving_date: c.receiving_date
                     ? c.receiving_date.substr(0, 10)
