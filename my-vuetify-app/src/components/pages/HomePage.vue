@@ -198,7 +198,7 @@
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.factory_number }}
           </v-col>
-          <v-col cols="1" class="d-flex justify-center align-center text-truncate">
+          <v-col cols="1" class="d-flex flex-column justify-center align-start text-truncate px-1">
             <span v-if="item.eq_type?.name" class="text-truncate d-inline-block" style="max-width: 100%">
               <template v-if="getClassificatorPath(item.eq_type)">
                 <span class="classificator-number">
@@ -209,6 +209,14 @@
               <span>{{ item.eq_type.name }}</span>
             </span>
             <span v-else>—</span>
+            <div class="d-flex flex-column mt-1 eq-labels-block">
+              <span v-if="item.eq_type?.staff_number" class="eq-name-label">
+                <span class="eq-label-text">Табель</span> {{ item.eq_type.staff_number }}
+              </span>
+              <span v-if="item.eq_type?.fnn != null && item.eq_type?.fnn !== ''" class="eq-name-label">
+                <span class="eq-label-text">ФНН</span> {{ item.eq_type.fnn }}
+              </span>
+            </div>
           </v-col>
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.comment }}
@@ -579,5 +587,22 @@ export default {
 }
 .col-number-header {
   font-size: 0.9rem;
+}
+
+/* подписи Табель и ФНН у наименования оборудования */
+.eq-labels-block {
+  gap: 2px;
+  line-height: 1.2;
+}
+.eq-label-text {
+  font-size: 0.55rem;
+  color: rgba(0, 0, 0, 0.42);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-right: 3px;
+}
+.eq-name-label {
+  font-size: 0.65rem;
+  color: rgba(0, 0, 0, 0.7);
 }
 </style>
