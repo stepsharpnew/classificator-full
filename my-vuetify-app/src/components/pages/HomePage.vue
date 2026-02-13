@@ -98,10 +98,10 @@
       </v-row>
       <div class="d-flex align-center mt-3 mb-2 px-2 text-body2">
         <span class="text-medium-emphasis">
-          В работе и в ремонте: <strong>{{ totalInWorkRepair }}</strong>
+          Всего: <strong>{{ totalInWorkRepair }}</strong>
         </span>
         <span class="ml-4 text-medium-emphasis">
-          Отображается: <strong>{{ items.length }}</strong>
+          Всего с учетом поиска: <strong>{{ totalCount }}</strong>
         </span>
       </div>
       <v-card-text class="pa-0 ma-0" v-if="items.length > 0">
