@@ -70,18 +70,7 @@
                 </template>
 
                 <template v-else>
-                  <v-tooltip
-                    v-if="row.name && row.name.length > 40"
-                    location="top"
-                  >
-                    <template #activator="{ props }">
-                      <span class="node-name" v-bind="props">
-                        {{ row.displayName }}
-                      </span>
-                    </template>
-                    <span>{{ row.name }}</span>
-                  </v-tooltip>
-                  <span v-else class="node-name">{{ row.displayName }}</span>
+                  <span class="node-name">{{ row.displayName }}</span>
                 </template>
               </div>
 
