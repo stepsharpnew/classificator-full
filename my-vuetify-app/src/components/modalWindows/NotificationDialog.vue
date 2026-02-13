@@ -1,6 +1,12 @@
 <template>
-  <v-dialog v-model="visible" max-width="450" persistent>
-    <v-card>
+  <v-dialog
+    v-model="visible"
+    max-width="450"
+    persistent
+    :scrim="false"
+    :transition="false"
+  >
+    <v-card :class="{ 'notification-fade-out': fadeOut }" class="notification-card">
       <v-toolbar :color="isError ? 'error' : 'success'" dark dense flat>
         <v-toolbar-title class="text-body-1 font-weight-bold">
           {{ isError ? 'Ошибка' : 'Успешно' }}
@@ -53,6 +59,10 @@ export default {
       type: String,
       default: 'success', // 'success' | 'error'
     },
+    fadeOut: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: ['update:modelValue'],
@@ -78,3 +88,12 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.notification-card {
+  transition: opacity 0.5s ease-out;
+}
+.notification-card.notification-fade-out {
+  opacity: 0;
+}
+</style>

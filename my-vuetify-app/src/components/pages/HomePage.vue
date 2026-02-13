@@ -8,6 +8,8 @@
           :user-department-id="userDepartmentId"
           :can-choose-department="canChooseDepartment"
           @created="refreshEquipmentList"
+          @closed="onEquipmentDialogClosed"
+          @notify="onNotify"
           :item="selectedItem"
           :mode="selectedMode"
         />
@@ -199,15 +201,22 @@
             >{{ item.factory_number }}
           </v-col>
           <v-col cols="1" class="d-flex flex-column justify-center align-start text-truncate px-1">
-            <span v-if="item.eq_type?.name" class="text-truncate d-inline-block" style="max-width: 100%">
-              <template v-if="getClassificatorPath(item.eq_type)">
-                <span class="classificator-number">
-                  {{ getClassificatorPath(item.eq_type) }}
+            <v-tooltip v-if="item.eq_type?.name" location="top">
+              <template #activator="{ props }">
+                <span v-bind="props" class="text-truncate d-inline-block" style="max-width: 100%; cursor: default">
+                  <template v-if="getClassificatorPath(item.eq_type)">
+                    <span class="classificator-number">
+                      {{ getClassificatorPath(item.eq_type) }}
+                    </span>
+                    <span> </span>
+                  </template>
+                  <span>{{ item.eq_type.name }}</span>
                 </span>
-                <span> </span>
               </template>
-              <span>{{ item.eq_type.name }}</span>
-            </span>
+              <template #default>
+                <span class="equipment-tooltip-content">{{ getEquipmentFullName(item) }}</span>
+              </template>
+            </v-tooltip>
             <span v-else>—</span>
             <div class="d-flex flex-column mt-1 eq-labels-block">
               <span v-if="item.eq_type?.staff_number" class="eq-name-label">
@@ -316,6 +325,13 @@
       rounded="circle"
     ></v-pagination>
   </v-container>
+
+  <NotificationDialog
+    v-model="notification.show"
+    :message="notification.message"
+    :type="notification.type"
+    :fade-out="notification.fadeOut"
+  />
 </template>
 
 <script>
@@ -326,6 +342,7 @@ import EquipmentCreateDialog from '../modalWindows/addEquipModal.vue';
 import ChangeDepartmentDialog from '../modalWindows/ChangeDepartmentDialog.vue';
 import ConfirmArchiveDialog from '../modalWindows/ConfirmArchiveDialog.vue';
 import ConfirmComp from '../modalWindows/ConfirmComp.vue';
+import NotificationDialog from '../modalWindows/NotificationDialog.vue';
 
 export default {
   components: {
@@ -335,6 +352,7 @@ export default {
     ConfirmComp,
     ConfirmArchiveDialog,
     ChangeDepartmentDialog,
+    NotificationDialog,
   },
 
   data() {
@@ -370,6 +388,13 @@ export default {
       itemsPerPage: 20,
       userDepartmentId: '',
       canChooseDepartment: false,
+      notification: {
+        show: false,
+        message: '',
+        type: 'success',
+        fadeOut: false,
+      },
+      notificationHideTimeout: null,
     };
   },
   computed: {
@@ -406,6 +431,22 @@ export default {
     },
     async refreshEquipmentList() {
       this.fetchData();
+    },
+    onNotify({ message, type }) {
+      if (this.notificationHideTimeout) {
+        clearTimeout(this.notificationHideTimeout);
+        this.notificationHideTimeout = null;
+      }
+      this.notification = { show: true, message, type, fadeOut: false };
+      const visibleMs = 500;
+      const fadeOutMs = 500;
+      this.notificationHideTimeout = setTimeout(() => {
+        this.notification.fadeOut = true;
+        this.notificationHideTimeout = setTimeout(() => {
+          this.notification = { show: false, message: '', type: 'success', fadeOut: false };
+          this.notificationHideTimeout = null;
+        }, fadeOutMs);
+      }, visibleMs);
     },
     async fetchData() {
       if (this.filters.equipmentType) {
@@ -509,6 +550,10 @@ export default {
       this.selectedItem = item;
       this.selectedMode = 'copy';
     },
+    onEquipmentDialogClosed() {
+      this.selectedItem = null;
+      this.selectedMode = '';
+    },
     async deleteItem(item) {
       this.deletedItem = item;
     },
@@ -520,6 +565,11 @@ export default {
       
       // Возвращаем полный путь классификатора (например, "1.1.1.1.3", "2.31.23.2", "5.1.2")
       return String(eqType.classificator_path);
+    },
+    getEquipmentFullName(item) {
+      if (!item?.eq_type?.name) return '';
+      const path = this.getClassificatorPath(item.eq_type);
+      return path ? `${path} ${item.eq_type.name}`.trim() : item.eq_type.name;
     },
   },
   async mounted() {
@@ -550,6 +600,9 @@ export default {
       ),
     ];
   },
+  beforeUnmount() {
+    if (this.notificationHideTimeout) clearTimeout(this.notificationHideTimeout);
+  },
 };
 </script>
 
@@ -574,14 +627,14 @@ export default {
   font-size: 1.05em;
 }
 
-.col-number-header,
+/* .col-number-header,
 .col-number {
   font-variant-numeric: tabular-nums;
   color: rgba(0, 0, 0, 0.55);
   flex: 0 0 2rem;
   min-width: 2rem;
   max-width: 2rem;
-}
+} */
 .col-number {
   font-size: 0.9rem;
 }
@@ -604,5 +657,18 @@ export default {
 .eq-name-label {
   font-size: 0.65rem;
   color: rgba(0, 0, 0, 0.7);
+}
+
+</style>
+<style>
+/* Всплывающая подсказка наименования — ограниченная ширина, перенос строк (без scoped: рендер в teleport) */
+.equipment-tooltip-content {
+  display: inline-block;
+  max-width: 16em;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.35;
+  text-align: left;
 }
 </style>

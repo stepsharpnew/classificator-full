@@ -253,21 +253,13 @@
         </div>
       </v-card-actions>
     </v-card>
-
-    <NotificationDialog
-      v-model="notification.show"
-      :message="notification.message"
-      :type="notification.type"
-    />
   </v-dialog>
 </template>
 
 <script>
 import axios from 'axios';
-import NotificationDialog from './NotificationDialog.vue';
 
 export default {
-  components: { NotificationDialog },
 
   props: {
     departments: {
@@ -331,11 +323,6 @@ export default {
         comment: '',
         parent_id: '',
         childrens: [],
-      },
-      notification: {
-        show: false,
-        message: '',
-        type: 'success',
       },
       selectedParentEquipmentType: null,
       selectedChildEquipmentType: {},
@@ -419,9 +406,6 @@ export default {
       this.deleted_equipments = [];
       this.dialog = true;
     },
-    showNotification(message, type = 'success') {
-      this.notification = { show: true, message, type };
-    },
     addChild() {
       this.formData.childrens.push({
         inventory_number: '',
@@ -453,27 +437,27 @@ export default {
           const res = await axios.put('/api/equipment', body);
           if (res.data && res.data.success === false) {
             const msg = res.data.error?.msg || res.data.error || 'Ошибка при сохранении';
-            this.showNotification(msg, 'error');
+            this.$emit('notify', { message: msg, type: 'error' });
             return;
           }
-          this.showNotification('Оборудование обновлено');
+          this.$emit('notify', { message: 'Оборудование обновлено', type: 'success' });
           this.$emit('created');
           this.dialog = false;
         } else {
           const res = await axios.post('/api/equipment', this.formData);
           if (res.data && res.data.success === false) {
             const msg = res.data.error?.msg || res.data.error || 'Ошибка при добавлении оборудования';
-            this.showNotification(msg, 'error');
+            this.$emit('notify', { message: msg, type: 'error' });
             return;
           }
-          this.showNotification('Оборудование успешно добавлено');
+          this.$emit('notify', { message: 'Оборудование успешно создано', type: 'success' });
           this.$emit('created');
           this.dialog = false;
         }
       } catch (err) {
         console.error('Ошибка при сохранении оборудования:', err);
         const msg = err.response?.data?.error?.msg || err.response?.data?.detail || 'Ошибка при сохранении оборудования';
-        this.showNotification(msg, 'error');
+        this.$emit('notify', { message: msg, type: 'error' });
       } finally {
         this.loading = false;
       }
@@ -535,11 +519,13 @@ export default {
     },
   },
   mounted() {},
-  emits: ['created', 'update:search', 'update:modelValue'],
+  emits: ['created', 'closed', 'update:search', 'update:modelValue'],
   watch: {
     dialog(newVal) {
       // Сбрасываем состояние при закрытии диалога
       if (!newVal) {
+        this.$emit('closed');
+        this.notification = { show: false, message: '', type: 'success' };
         this.parentSuggestions = [];
         this.childSuggestions = [];
         this.suggestionLoading = false;
@@ -629,6 +615,7 @@ export default {
                 };
               })
             : [];
+          this.notification = { show: false, message: '', type: 'success' };
           // Принудительно открываем диалог
           this.$nextTick(() => {
             this.dialog = true;
@@ -644,9 +631,8 @@ export default {
       handler(newMode, oldMode) {
         // Если mode изменился и item есть, открываем диалог
         if (newMode && this.item && newMode !== oldMode) {
-          // Триггерим watch item
+          this.notification = { show: false, message: '', type: 'success' };
           this.$nextTick(() => {
-            // Принудительно открываем диалог
             this.dialog = true;
           });
         }
