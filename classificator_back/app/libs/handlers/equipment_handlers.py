@@ -551,14 +551,31 @@ async def equipment_delete(id, user):
             # 1. Получаем Equipment, которое нужно удалить.  Используем eager loading
             #    чтобы загрузить все связанные components.
             equipment = await session.execute(
-                select(Equipment).options(joinedload(Equipment.components)).where(Equipment.id == id)
+                select(Equipment)
+                .options(joinedload(Equipment.components), selectinload(Equipment.skzi))
+                .where(Equipment.id == id)
             )
             equipment = equipment.scalars().first()
 
             if not equipment:
-                raise HTTPException(status_code=404, detail="Equipment not found")
+                raise HTTPException(status_code=404, detail="Оборудование не найдено")
 
-            # 2. Проверка прав доступа (если необходимо)
+            # 2. Проверка прав доступа
+            # Оборудование, являющееся СКЗИ, могут удалять только администратор, главный инженер или администратор СКЗИ
+            existing_skzi_list = list(equipment.skzi) if equipment.skzi else []
+            has_skzi = len(existing_skzi_list) > 0
+            if has_skzi:
+                can_delete_skzi_equipment = (
+                    user.get('department_id') == 'admin'
+                    or user.get('role') == 'chief_engineer'
+                    or user.get('is_superuser') in (True, 'true', 1)
+                    or user.get('is_skzi_admin') in (True, 'true', 1)
+                )
+                if not can_delete_skzi_equipment:
+                    raise HTTPException(
+                        status_code=403,
+                        detail='Только администратор СКЗИ, главный инженер или администратор может удалять оборудование, являющееся СКЗИ',
+                    )
             if user['role'] == 'mol':
                 if user['department_id'] != str(equipment.department_id):
                     raise HTTPException(status_code=400, detail='Вы не можете удалить не свое оборудование')
@@ -584,10 +601,25 @@ async def equipment_delete(id, user):
             await session.delete(equipment)
             await session.commit()
 
-        except Exception as e:
-            print(e)
+        except HTTPException:
             await session.rollback()
-            raise HTTPException(status_code=500, detail=f"Ошибка при выполнении транзакции в БД: {e}")
+            raise
+        except IntegrityError as e:
+            await session.rollback()
+            err_msg = str(e.orig) if hasattr(e, 'orig') and e.orig else str(e)
+            if 'foreign key' in err_msg.lower() or 'violates' in err_msg.lower():
+                raise HTTPException(
+                    status_code=409,
+                    detail='Невозможно удалить оборудование: на него есть ссылки (заявки, примечания и т.д.). Сначала удалите связанные данные.',
+                )
+            raise HTTPException(status_code=400, detail='Ошибка целостности данных при удалении')
+        except Exception as e:
+            await session.rollback()
+            print(f"equipment_delete error: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail='Ошибка при удалении оборудования. Попробуйте позже или обратитесь к администратору.',
+            )
 
 
 async def get_requests():
