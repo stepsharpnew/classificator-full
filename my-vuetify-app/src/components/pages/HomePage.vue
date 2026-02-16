@@ -107,7 +107,7 @@
       </div>
       <v-card-text class="pa-0 ma-0" v-if="items.length > 0">
         <v-row
-          class="text-center font-weight-bold mt-4 bg-grey-lighten-3 rounded-t table-row"
+          class="text-center font-weight-bold mt-4 bg-grey-lighten-3 rounded-t table-row table-header-row"
           style="font-size: 0.98rem"
         >
           <v-col
@@ -687,6 +687,14 @@ export default {
 
 .table-row {
   min-height: 80px;
+}
+
+/* Отделение серого заголовка от зелёной подсветки первой строки */
+.table-header-row {
+  overflow: hidden;
+  border-bottom: 2px solid #bdbdbd;
+  position: relative;
+  z-index: 1;
 }
 
 </style>

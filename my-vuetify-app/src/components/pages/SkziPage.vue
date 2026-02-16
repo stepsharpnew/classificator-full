@@ -115,7 +115,7 @@
         <v-sheet class="skzi-table-sheet overflow-hidden rounded mx-3 mt-4 mb-3" elevation="0">
         <v-row
           no-gutters
-          class="text-center font-weight-bold bg-grey-lighten-3 rounded-t table-row"
+          class="text-center font-weight-bold bg-grey-lighten-3 rounded-t table-row table-header-row"
           style="font-size: 0.98rem"
         >
           <v-col cols="1" class="d-flex justify-center align-center text-no-wrap col-number-header py-3">№</v-col>
@@ -487,6 +487,14 @@ export default {
 }
 .table-row {
   min-height: 80px;
+}
+
+/* Отделение серого заголовка от подсветки первой строки */
+.table-header-row {
+  overflow: hidden;
+  border-bottom: 2px solid #bdbdbd;
+  position: relative;
+  z-index: 1;
 }
 </style>
 <style>
