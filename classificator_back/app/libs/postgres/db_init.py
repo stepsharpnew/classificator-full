@@ -28,6 +28,25 @@ if __name__=='__main__':
         connection.execute(text("""
             ALTER TABLE equipment_type ADD COLUMN IF NOT EXISTS staff_number VARCHAR
         """))
+        # Миграция: удалить колонку name из skzi (если существует)
+        connection.execute(text("ALTER TABLE skzi DROP COLUMN IF EXISTS name"))
+        # Миграция: создать таблицу skzi (если ещё не существует)
+        connection.execute(text("""
+            CREATE TABLE IF NOT EXISTS skzi (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                created_at TIMESTAMP NOT NULL DEFAULT now(),
+                updated_at TIMESTAMP NOT NULL DEFAULT now(),
+                equipment_id UUID NOT NULL UNIQUE REFERENCES equipment(id) ON DELETE CASCADE,
+                registration_number VARCHAR NOT NULL UNIQUE,
+                act_of_receiving_skzi VARCHAR,
+                date_of_act_of_receiving TIMESTAMP,
+                sertificate_number VARCHAR,
+                end_date_of_sertificate TIMESTAMP,
+                date_of_creation_skzi TIMESTAMP,
+                nubmer_of_jornal VARCHAR,
+                issued_to_whoom VARCHAR
+            )
+        """))
     session = Session(engine)
     session.commit()
 

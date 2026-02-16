@@ -20,8 +20,12 @@ async def equipment_get_router(search = None, equipmentType = None, department =
     return await get_equipments(search, equipmentType, department, year, type, limit, offset)
 
 @equipment_router.get("/archive")
-async def equipment_get_router(search = None, equipmentType = None, department = None, year=None, type=None, limit=20, offset=0):
+async def equipment_get_archive_router(search = None, equipmentType = None, department = None, year=None, type=None, limit=20, offset=0):
     return await get_equipments(search, equipmentType, department, year, type, limit, offset, archive=True)
+
+@equipment_router.get("/skzi")
+async def skzi_list_router(search=None, limit=100, offset=0):
+    return await get_skzi_list(search=search, limit=limit, offset=offset)
 
 @equipment_router.post('/equipment')
 async def equipment_create_router(equipment: EquipmentCreateSchema, credentials: HTTPAuthorizationCredentials = Security(security)):
@@ -39,7 +43,11 @@ async def equipment_update_router(data: EquipmentUpdateDataSchema, credentials: 
     response = await Auth.decode_access_token(credentials.credentials)
     if not response.success:
         raise HTTPException(status_code=401, detail=response.error.get('msg'))
-    return await equipment_update(data=data,  user=response.data['user'])
+    try:
+        result = await equipment_update(data=data, user=response.data['user'])
+        return result
+    except HTTPException as exc:
+        return Response(data=None, success=False, error={'msg': exc.detail})
 
 
 @equipment_router.delete('/equipment')

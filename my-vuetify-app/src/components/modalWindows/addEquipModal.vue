@@ -124,6 +124,88 @@
                 rows="1"
               ></v-textarea>
             </v-col>
+
+            <v-col cols="12">
+              <v-checkbox
+                v-model="formData.hasSkzi"
+                label="СКЗИ"
+                hide-details
+                density="comfortable"
+                color="primary"
+              ></v-checkbox>
+            </v-col>
+
+            <template v-if="formData.hasSkzi">
+              <v-col cols="12" class="text-subtitle-1 font-weight-medium mt-2">Данные СКЗИ</v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="formData.skzi.registration_number"
+                  label="Регистрационный номер"
+                  :rules="[(v) => !!v || 'Обязательное поле']"
+                  outlined
+                  dense
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="formData.skzi.act_of_receiving_skzi"
+                  label="Акт приёма СКЗИ"
+                  outlined
+                  dense
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="formData.skzi.date_of_act_of_receiving"
+                  label="Дата акта приёма СКЗИ"
+                  type="date"
+                  outlined
+                  dense
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="formData.skzi.sertificate_number"
+                  label="Номер сертификата"
+                  outlined
+                  dense
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="formData.skzi.end_date_of_sertificate"
+                  label="Дата окончания сертификата"
+                  type="date"
+                  outlined
+                  dense
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="formData.skzi.date_of_creation_skzi"
+                  label="Дата создания СКЗИ"
+                  type="date"
+                  outlined
+                  dense
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="formData.skzi.nubmer_of_jornal"
+                  label="Номер журнала"
+                  outlined
+                  dense
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="formData.skzi.issued_to_whoom"
+                  label="Выдано кому"
+                  outlined
+                  dense
+                ></v-text-field>
+              </v-col>
+            </template>
           </v-row>
           <!-- //----------------------------------------------------------------------------------------- -->
 
@@ -323,6 +405,17 @@ export default {
         comment: '',
         parent_id: '',
         childrens: [],
+        hasSkzi: false,
+        skzi: {
+          registration_number: '',
+          act_of_receiving_skzi: '',
+          date_of_act_of_receiving: '',
+          sertificate_number: '',
+          end_date_of_sertificate: '',
+          date_of_creation_skzi: '',
+          nubmer_of_jornal: '',
+          issued_to_whoom: '',
+        },
       },
       selectedParentEquipmentType: null,
       selectedChildEquipmentType: {},
@@ -384,6 +477,28 @@ export default {
     },
   },
   methods: {
+    getErrorMessageFromResponse(data, fallback = 'Ошибка при сохранении') {
+      if (!data) return fallback;
+      if (data.error && typeof data.error === 'string') return data.error;
+      if (data.error && data.error.msg) return data.error.msg;
+      if (data.detail) {
+        if (typeof data.detail === 'string') return data.detail;
+        if (Array.isArray(data.detail) && data.detail.length)
+          return data.detail[0].msg || data.detail[0].detail || JSON.stringify(data.detail[0]);
+      }
+      return fallback;
+    },
+    getErrorMessageFromError(err) {
+      const d = err?.response?.data;
+      if (d?.error?.msg) return d.error.msg;
+      if (d?.error && typeof d.error === 'string') return d.error;
+      if (d?.detail) {
+        if (typeof d.detail === 'string') return d.detail;
+        if (Array.isArray(d.detail) && d.detail.length)
+          return d.detail[0].msg || d.detail[0].detail || String(d.detail[0]);
+      }
+      return null;
+    },
     openCreateDialog() {
       this.action = 'Создание';
       const defaultDept = this.canChooseDepartment ? '' : (this.userDepartmentId || '');
@@ -398,6 +513,17 @@ export default {
         comment: '',
         parent_id: '',
         childrens: [],
+        hasSkzi: false,
+        skzi: {
+          registration_number: '',
+          act_of_receiving_skzi: '',
+          date_of_act_of_receiving: '',
+          sertificate_number: '',
+          end_date_of_sertificate: '',
+          date_of_creation_skzi: '',
+          nubmer_of_jornal: '',
+          issued_to_whoom: '',
+        },
       };
       this.parentSuggestions = [];
       this.childSuggestions = [];
@@ -434,9 +560,14 @@ export default {
       };
       try {
         if (this.mode == 'edit') {
-          const res = await axios.put('/api/equipment', body);
+          const bodyData = { ...body };
+          bodyData.updated_equipment = { ...bodyData.updated_equipment };
+          if (!bodyData.updated_equipment.hasSkzi) bodyData.updated_equipment.skzi = null;
+          else bodyData.updated_equipment.skzi = { ...bodyData.updated_equipment.skzi };
+          delete bodyData.updated_equipment.hasSkzi;
+          const res = await axios.put('/api/equipment', bodyData);
           if (res.data && res.data.success === false) {
-            const msg = res.data.error?.msg || res.data.error || 'Ошибка при сохранении';
+            const msg = this.getErrorMessageFromResponse(res.data);
             this.$emit('notify', { message: msg, type: 'error' });
             return;
           }
@@ -444,9 +575,13 @@ export default {
           this.$emit('created');
           this.dialog = false;
         } else {
-          const res = await axios.post('/api/equipment', this.formData);
+          const payload = { ...this.formData };
+          if (!payload.hasSkzi) delete payload.skzi;
+          else payload.skzi = { ...payload.skzi };
+          delete payload.hasSkzi;
+          const res = await axios.post('/api/equipment', payload);
           if (res.data && res.data.success === false) {
-            const msg = res.data.error?.msg || res.data.error || 'Ошибка при добавлении оборудования';
+            const msg = this.getErrorMessageFromResponse(res.data, 'Ошибка при добавлении оборудования');
             this.$emit('notify', { message: msg, type: 'error' });
             return;
           }
@@ -456,7 +591,7 @@ export default {
         }
       } catch (err) {
         console.error('Ошибка при сохранении оборудования:', err);
-        const msg = err.response?.data?.error?.msg || err.response?.data?.detail || 'Ошибка при сохранении оборудования';
+        const msg = this.getErrorMessageFromError(err) || 'Ошибка при сохранении оборудования';
         this.$emit('notify', { message: msg, type: 'error' });
       } finally {
         this.loading = false;
@@ -541,6 +676,18 @@ export default {
           comment: '',
           parent_id: '',
           childrens: [],
+          hasSkzi: false,
+          skzi: {
+            name: '',
+            registration_number: '',
+            act_of_receiving_skzi: '',
+            date_of_act_of_receiving: '',
+            sertificate_number: '',
+            end_date_of_sertificate: '',
+            date_of_creation_skzi: '',
+            nubmer_of_jornal: '',
+            issued_to_whoom: '',
+          },
         };
       }
     },
@@ -560,6 +707,9 @@ export default {
           };
           if (this.mode == 'copy') {
             this.action = 'Создание';
+            const skziListCopy = Array.isArray(newItem.skzi) ? newItem.skzi : (newItem.skzi ? [newItem.skzi] : []);
+            const skziDataCopy = skziListCopy.length ? skziListCopy[0] : null;
+            const fmtCopy = (d) => (d ? String(d).substr(0, 10) : '');
             this.formData = {
               ...newItem,
               factory_number: '',
@@ -567,6 +717,28 @@ export default {
               parent_id: newItem.id,
               id: 0,
               department_id: this.userDepartmentId || newItem.department_id,
+              hasSkzi: !!skziDataCopy,
+              skzi: skziDataCopy
+                ? {
+                    registration_number: skziDataCopy.registration_number || '',
+                    act_of_receiving_skzi: skziDataCopy.act_of_receiving_skzi || '',
+                    date_of_act_of_receiving: fmtCopy(skziDataCopy.date_of_act_of_receiving),
+                    sertificate_number: skziDataCopy.sertificate_number || '',
+                    end_date_of_sertificate: fmtCopy(skziDataCopy.end_date_of_sertificate),
+                    date_of_creation_skzi: fmtCopy(skziDataCopy.date_of_creation_skzi),
+                    nubmer_of_jornal: skziDataCopy.nubmer_of_jornal || '',
+                    issued_to_whoom: skziDataCopy.issued_to_whoom || '',
+                  }
+                : {
+                    registration_number: '',
+                    act_of_receiving_skzi: '',
+                    date_of_act_of_receiving: '',
+                    sertificate_number: '',
+                    end_date_of_sertificate: '',
+                    date_of_creation_skzi: '',
+                    nubmer_of_jornal: '',
+                    issued_to_whoom: '',
+                  },
             };
             if (newItem.eq_type && newItem.eq_type.id) {
               this.parentSuggestions = [newItem.eq_type];
@@ -576,8 +748,33 @@ export default {
           if (this.mode == 'edit') {
             this.action = 'Редактирование';
             console.log(newItem);
+            const skziList = Array.isArray(newItem.skzi) ? newItem.skzi : (newItem.skzi ? [newItem.skzi] : []);
+            const skziData = skziList.length ? skziList[0] : null;
+            const fmt = (d) => (d ? String(d).substr(0, 10) : '');
             this.formData = {
               ...newItem,
+              hasSkzi: !!skziData,
+              skzi: skziData
+                ? {
+                    registration_number: skziData.registration_number || '',
+                    act_of_receiving_skzi: skziData.act_of_receiving_skzi || '',
+                    date_of_act_of_receiving: fmt(skziData.date_of_act_of_receiving),
+                    sertificate_number: skziData.sertificate_number || '',
+                    end_date_of_sertificate: fmt(skziData.end_date_of_sertificate),
+                    date_of_creation_skzi: fmt(skziData.date_of_creation_skzi),
+                    nubmer_of_jornal: skziData.nubmer_of_jornal || '',
+                    issued_to_whoom: skziData.issued_to_whoom || '',
+                  }
+                : {
+                    registration_number: '',
+                    act_of_receiving_skzi: '',
+                    date_of_act_of_receiving: '',
+                    sertificate_number: '',
+                    end_date_of_sertificate: '',
+                    date_of_creation_skzi: '',
+                    nubmer_of_jornal: '',
+                    issued_to_whoom: '',
+                  },
             };
             if (newItem.eq_type && newItem.eq_type.id) {
               this.parentSuggestions = [newItem.eq_type];

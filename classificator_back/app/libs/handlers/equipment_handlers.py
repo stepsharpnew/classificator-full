@@ -14,6 +14,7 @@ from sqlalchemy.sql import func
 from app.schemas.schema import Response, EquipmentResponseSchema
 from fastapi import HTTPException
 from sqlalchemy.orm import joinedload, aliased
+from sqlalchemy.exc import IntegrityError
 import json
 settings = get_settings()
 async_session = settings.async_session
@@ -39,6 +40,7 @@ async def get_equipments(search, equipmentType, department, year, type, limit=10
             stmt = select(Equipment).options(
             joinedload(Equipment.eq_type), # joinedload для  EqType
             joinedload(Equipment.department), # joinedload для  Department
+            joinedload(Equipment.skzi),
             joinedload(Equipment.components).joinedload(Equipment.eq_type),
             joinedload(Equipment.components).joinedload(Equipment.department),  # Загружаем components через JOIN
         ).where(and_(Equipment.status != 'archive', Equipment.status != 'transfered'))
@@ -47,6 +49,7 @@ async def get_equipments(search, equipmentType, department, year, type, limit=10
             stmt = select(Equipment).options(
             joinedload(Equipment.eq_type), # joinedload для  EqType
             joinedload(Equipment.department), # joinedload для  Department
+            joinedload(Equipment.skzi),
             joinedload(Equipment.components).joinedload(Equipment.eq_type),
             joinedload(Equipment.components).joinedload(Equipment.department),   # Загружаем components через JOIN
         ).where(or_(Equipment.status == 'archive', Equipment.status == 'transfered'))
@@ -206,6 +209,48 @@ async def get_equipments(search, equipmentType, department, year, type, limit=10
             'total_in_work_repair': total_in_work_repair,
         }
 
+async def get_skzi_list(search=None, limit=100, offset=0):
+    """Список СКЗИ с данными оборудования (Инв.№, Зав.№, Наименование)."""
+    async with async_session() as session:
+        stmt = (
+            select(Skzi)
+            .options(
+                joinedload(Skzi.equipment).options(
+                    joinedload(Equipment.eq_type),
+                    joinedload(Equipment.department),
+                    joinedload(Equipment.components),
+                )
+            )
+            .where(
+                and_(
+                    Equipment.status != 'archive',
+                    Equipment.status != 'transfered',
+                )
+            )
+            .join(Equipment, Skzi.equipment_id == Equipment.id)
+        )
+        if search:
+            search = escape_search_string(search)
+            search_pattern = f"%{search}%"
+            stmt = stmt.where(
+                or_(
+                    func.lower(Skzi.registration_number).like(func.lower(search_pattern)),
+                    func.lower(Equipment.inventory_number).like(func.lower(search_pattern)),
+                    func.lower(Equipment.factory_number).like(func.lower(search_pattern)),
+                    Equipment.eq_type.has(
+                        func.lower(EquipmentType.name).like(func.lower(search_pattern))
+                    ),
+                )
+            )
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        count_result = await session.execute(count_stmt)
+        total_count = count_result.scalar() or 0
+        stmt = stmt.order_by(Skzi.created_at).limit(limit).offset(offset)
+        result = await session.execute(stmt)
+        skzi_list = result.unique().scalars().all()
+        return {'items': skzi_list, 'total_count': total_count}
+
+
 async def get_archive_equipments(search, equipmentType, department, year, type, limit=10, offset=0):
     async with async_session() as session:
 
@@ -274,8 +319,45 @@ async def create_equipment(equipment: EquipmentCreateSchema, user):
                             )
                 session.add(new_child)
                 new_equipment.components.append(new_child)
-        await session.commit() 
-        await session.refresh(new_equipment)  
+        if equipment.skzi:
+            skzi_data = equipment.skzi
+            # Проверка уникальности регистрационного номера СКЗИ
+            skzi_check = select(Skzi).where(Skzi.registration_number == skzi_data.registration_number)
+            skzi_result = await session.execute(skzi_check)
+            if skzi_result.scalars().first():
+                raise HTTPException(
+                    status_code=400,
+                    detail='СКЗИ с таким регистрационным номером уже существует',
+                )
+            skzi_obj = Skzi(
+                registration_number=skzi_data.registration_number,
+                act_of_receiving_skzi=skzi_data.act_of_receiving_skzi,
+                date_of_act_of_receiving=skzi_data.date_of_act_of_receiving,
+                sertificate_number=skzi_data.sertificate_number,
+                end_date_of_sertificate=skzi_data.end_date_of_sertificate,
+                date_of_creation_skzi=skzi_data.date_of_creation_skzi,
+                nubmer_of_jornal=skzi_data.nubmer_of_jornal,
+                issued_to_whoom=skzi_data.issued_to_whoom,
+                equipment_id=new_equipment.id,
+            )
+            session.add(skzi_obj)
+        try:
+            await session.commit()
+        except IntegrityError as e:
+            await session.rollback()
+            err_msg = str(e.orig) if hasattr(e, 'orig') and e.orig else str(e)
+            if 'registration_number' in err_msg or 'skzi_registration_number' in err_msg:
+                raise HTTPException(
+                    status_code=400,
+                    detail='СКЗИ с таким регистрационным номером уже существует',
+                )
+            if 'equipment_id' in err_msg or 'skzi_equipment_id' in err_msg:
+                raise HTTPException(
+                    status_code=400,
+                    detail='У данного оборудования уже есть СКЗИ',
+                )
+            raise HTTPException(status_code=400, detail=f'Ошибка при создании СКЗИ: {err_msg}')
+        await session.refresh(new_equipment)
 
         return new_equipment
 
@@ -287,7 +369,7 @@ async def equipment_update(data, user):
     #     raise HTTPException(status_code=400, detail='Только МОЛ может редактировать оборудование')
     async with async_session() as session:
         try:
-            stmt = select(Equipment).where(Equipment.id == data.updated_equipment.id)
+            stmt = select(Equipment).options(selectinload(Equipment.skzi)).where(Equipment.id == data.updated_equipment.id)
             result = await session.execute(stmt)
             existing_equipment = result.scalars().first()
             if user['department_id'] != str(existing_equipment.department_id):
@@ -303,6 +385,47 @@ async def equipment_update(data, user):
             existing_equipment.type = data.updated_equipment.type
             existing_equipment.comment = data.updated_equipment.comment
             existing_equipment.department_id = data.updated_equipment.department_id
+
+            # Обработка СКЗИ
+            existing_skzi_list = list(existing_equipment.skzi) if existing_equipment.skzi else []
+            existing_skzi = existing_skzi_list[0] if existing_skzi_list else None
+            if data.updated_equipment.skzi:
+                skzi_data = data.updated_equipment.skzi
+                # Проверка уникальности регистрационного номера (исключая текущее СКЗИ при обновлении)
+                q = select(Skzi).where(Skzi.registration_number == skzi_data.registration_number)
+                if existing_skzi:
+                    q = q.where(Skzi.id != existing_skzi.id)
+                dup = await session.execute(q)
+                if dup.scalars().first():
+                    raise HTTPException(
+                        status_code=400,
+                        detail='СКЗИ с таким регистрационным номером уже существует',
+                    )
+                if existing_skzi:
+                    existing_skzi.registration_number = skzi_data.registration_number
+                    existing_skzi.act_of_receiving_skzi = skzi_data.act_of_receiving_skzi
+                    existing_skzi.date_of_act_of_receiving = skzi_data.date_of_act_of_receiving
+                    existing_skzi.sertificate_number = skzi_data.sertificate_number
+                    existing_skzi.end_date_of_sertificate = skzi_data.end_date_of_sertificate
+                    existing_skzi.date_of_creation_skzi = skzi_data.date_of_creation_skzi
+                    existing_skzi.nubmer_of_jornal = skzi_data.nubmer_of_jornal
+                    existing_skzi.issued_to_whoom = skzi_data.issued_to_whoom
+                else:
+                    skzi_obj = Skzi(
+                        registration_number=skzi_data.registration_number,
+                        act_of_receiving_skzi=skzi_data.act_of_receiving_skzi,
+                        date_of_act_of_receiving=skzi_data.date_of_act_of_receiving,
+                        sertificate_number=skzi_data.sertificate_number,
+                        end_date_of_sertificate=skzi_data.end_date_of_sertificate,
+                        date_of_creation_skzi=skzi_data.date_of_creation_skzi,
+                        nubmer_of_jornal=skzi_data.nubmer_of_jornal,
+                        issued_to_whoom=skzi_data.issued_to_whoom,
+                        equipment_id=existing_equipment.id,
+                    )
+                    session.add(skzi_obj)
+            else:
+                if existing_skzi:
+                    await session.delete(existing_skzi)
 
             for child_id in data.deleted_equipments:
                 if isinstance(child_id, int):
@@ -344,9 +467,26 @@ async def equipment_update(data, user):
                         existing_equipment.components.append(new_child)
 
                 # 4. Сохраняем изменения (коммит транзакции)
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError as e:
+                await session.rollback()
+                err_msg = str(e.orig) if hasattr(e, 'orig') and e.orig else str(e)
+                if 'registration_number' in err_msg or 'skzi_registration_number' in err_msg:
+                    raise HTTPException(
+                        status_code=400,
+                        detail='СКЗИ с таким регистрационным номером уже существует',
+                    )
+                if 'equipment_id' in err_msg or 'skzi_equipment_id' in err_msg:
+                    raise HTTPException(
+                        status_code=400,
+                        detail='У данного оборудования уже есть СКЗИ',
+                    )
+                raise HTTPException(status_code=400, detail=f'Ошибка при сохранении СКЗИ: {err_msg}')
             await session.refresh(existing_equipment)
             return existing_equipment
+        except HTTPException:
+            raise
         except Exception as e:
             print(e)
             await session.rollback()

@@ -7,6 +7,7 @@ import HomePage from '../components/pages/HomePage.vue';
 import LoginPage from '../components/pages/LoginPage.vue';
 import NotesPage from '../components/pages/NotesPage.vue';
 import RequestPage from '../components/pages/RequestPage.vue';
+import SkziPage from '../components/pages/SkziPage.vue';
 
 const routes = [
   {
@@ -43,6 +44,16 @@ const routes = [
     path: '/notes',
     name: 'notes',
     component: NotesPage,
+  },
+  {
+    path: '/skzi',
+    name: 'skzi',
+    component: SkziPage,
+  },
+  {
+    path: '/management',
+    name: 'management',
+    component: SkziPage,
   },
 ];
 

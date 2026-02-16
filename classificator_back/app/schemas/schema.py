@@ -53,6 +53,17 @@ class EquipmentStatus(str, Enum):
     archive = 'archive'
 
 
+class SkziCreateSchema(BaseModel):
+    registration_number: str
+    act_of_receiving_skzi: Optional[str] = None
+    date_of_act_of_receiving: Optional[date] = None
+    sertificate_number: Optional[str] = None
+    end_date_of_sertificate: Optional[date] = None
+    date_of_creation_skzi: Optional[date] = None
+    nubmer_of_jornal: Optional[str] = None
+    issued_to_whoom: Optional[str] = None
+
+
 class EquipmentCreateSchema(BaseModel):
     department_id: str
     inventory_number: str
@@ -64,6 +75,7 @@ class EquipmentCreateSchema(BaseModel):
     comment: Optional[str] = None
     parent_id: Optional[str] = None
     childrens: Optional[list[Any]] = None
+    skzi: Optional[SkziCreateSchema] = None
 
 class EquipmentUpdateSchema(BaseModel):
     id: str
@@ -77,6 +89,7 @@ class EquipmentUpdateSchema(BaseModel):
     comment: Optional[str] = None
     parent_id: Optional[str] = None
     childrens: Optional[list[Any]] = None
+    skzi: Optional[SkziCreateSchema] = None
 
 
 class EquipmentUpdateDataSchema(BaseModel):

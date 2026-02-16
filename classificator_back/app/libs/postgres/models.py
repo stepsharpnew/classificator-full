@@ -113,7 +113,27 @@ class Equipment(Base):
     requests = relationship("EquipmentRequests", back_populates="equipment", cascade="all, delete-orphan")
 
     eq_type = relationship("EquipmentType", back_populates='equipment')
+    skzi = relationship("Skzi", back_populates="equipment", cascade="all, delete-orphan")
+
+class Skzi(Base):
+    __tablename__ = 'skzi'
+    id = Column(UUID(as_uuid=True), default=uuid.uuid4, primary_key=True)
+    created_at = Column(DateTime, nullable=False, server_default=text("now()"))
+    updated_at = Column(DateTime, nullable=False, server_default=text("now()"), onupdate=func.now())
+    equipment_id = Column(UUID(as_uuid=True), ForeignKey('equipment.id', ondelete='CASCADE'), nullable=False, unique=True)
+    registration_number = Column(String, nullable=False, unique=True)
+    act_of_receiving_skzi = Column(String, nullable=True)
+    date_of_act_of_receiving = Column(DateTime, nullable=True)
+    sertificate_number = Column(String, nullable=True)
+    end_date_of_sertificate = Column(DateTime, nullable=True)
+    date_of_creation_skzi = Column(DateTime, nullable=True)
+    nubmer_of_jornal = Column(String, nullable=True)
+    issued_to_whoom = Column(String, nullable=True)
+
     
+    equipment = relationship("Equipment", back_populates="skzi")
+
+
 class EquipmentRequests(Base):
     __tablename__ = 'equipment_requests'
     id = Column(UUID(as_uuid=True), default=uuid.uuid4, primary_key=True)

@@ -106,8 +106,8 @@
       </div>
       <v-card-text class="pa-0 ma-0" v-if="items.length > 0">
         <v-row
-          class="text-center font-weight-bold mt-4 bg-grey-lighten-3 rounded-t"
-          style="font-size: 0.98rem; height: 100px"
+          class="text-center font-weight-bold mt-4 bg-grey-lighten-3 rounded-t table-row"
+          style="font-size: 0.98rem"
         >
           <v-col
             cols="1"
@@ -177,7 +177,7 @@
           v-for="(item, index) in items"
           :key="item.id"
           class="text-center align-center py-3 border-b"
-          :class="item.components.length ? 'bg-blue-lighten-5' : 'bg-white'"
+          :class="rowClass(item) + ' table-row'"
         >
           <v-col cols="1" class="d-flex justify-center align-center col-number">
             {{ (page - 1) * itemsPerPage + index + 1 }}
@@ -245,13 +245,18 @@
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.department?.name }}
           </v-col>
-          <v-col cols="1" class="d-flex justify-center align-center">
+          <v-col cols="1" class="d-flex flex-column justify-center align-center">
             <v-chip
               :color="statusColor(item.status)"
               size="small"
               class="text-white text-uppercase"
               >{{ statusText(item.status) }}</v-chip
             >
+            <span
+              v-if="hasSkzi(item)"
+              class="text-caption text-success mt-1"
+              v-tooltip="'Оборудование является СКЗИ'"
+            >СКЗИ ✓</span>
           </v-col>
 
           <v-col
@@ -306,7 +311,8 @@
             <div class="d-flex justify-center align-center gap-x-2">
               <ChangeDepartmentDialog
                 :item="item"
-                @archived="fetchData"
+                @transferred="fetchData"
+                @notify="onNotify"
               ></ChangeDepartmentDialog>
               <ConfirmArchiveDialog :item="item" @archived="fetchData" />
             </div>
@@ -438,15 +444,17 @@ export default {
         this.notificationHideTimeout = null;
       }
       this.notification = { show: true, message, type, fadeOut: false };
-      const visibleMs = 500;
-      const fadeOutMs = 500;
-      this.notificationHideTimeout = setTimeout(() => {
-        this.notification.fadeOut = true;
+      if (type !== 'error') {
+        const visibleMs = 500;
+        const fadeOutMs = 500;
         this.notificationHideTimeout = setTimeout(() => {
-          this.notification = { show: false, message: '', type: 'success', fadeOut: false };
-          this.notificationHideTimeout = null;
-        }, fadeOutMs);
-      }, visibleMs);
+          this.notification.fadeOut = true;
+          this.notificationHideTimeout = setTimeout(() => {
+            this.notification = { show: false, message: '', type: 'success', fadeOut: false };
+            this.notificationHideTimeout = null;
+          }, fadeOutMs);
+        }, visibleMs);
+      }
     },
     async fetchData() {
       if (this.filters.equipmentType) {
@@ -571,6 +579,15 @@ export default {
       const path = this.getClassificatorPath(item.eq_type);
       return path ? `${path} ${item.eq_type.name}`.trim() : item.eq_type.name;
     },
+    hasSkzi(item) {
+      if (!item?.skzi) return false;
+      const list = Array.isArray(item.skzi) ? item.skzi : [item.skzi];
+      return list.length > 0;
+    },
+    rowClass(item) {
+      const base = item.components.length ? 'bg-blue-lighten-5' : 'bg-white';
+      return this.hasSkzi(item) ? `${base} row-skzi` : base;
+    },
   },
   async mounted() {
     const token = localStorage.getItem('access_token');
@@ -657,6 +674,15 @@ export default {
 .eq-name-label {
   font-size: 0.65rem;
   color: rgba(0, 0, 0, 0.7);
+}
+
+/* Строка с оборудованием-СКЗИ — почти прозрачный зелёный фон */
+.row-skzi {
+  background-color: rgba(76, 175, 80, 0.12) !important;
+}
+
+.table-row {
+  min-height: 80px;
 }
 
 </style>

@@ -28,7 +28,7 @@
             <div>Инв.№ {{ item.inventory_number }}</div>
             <div>Зав.№ {{ item.factory_number }}</div>
             <div>Тип: {{ typeDisplayName(item.eq_type?.type) }}</div>
-            <div v-if="item.components.length">
+            <div v-if="item.components?.length">
               В составе: {{ item.components.length }} ед. оборудования
             </div>
           </div>
@@ -46,13 +46,12 @@
               v-if="betweenDepartments"
               :items="departments"
               item-title="name"
-              item-value="id"
+              item-value="name"
               label="Подразделение"
               variant="outlined"
               density="comfortable"
               hide-details
               v-model="dep"
-              @update:modelValue="fetchDep()"
             ></v-select>
             <v-col cols="6" v-if="!betweenDepartments">
               <v-text-field
@@ -125,13 +124,21 @@ export default {
       this.departments = [...new Set(departmentsRes.data)];
     },
     async confirmTransfer() {
+      if (this.betweenDepartments && !this.dep) {
+        this.$emit('notify', { message: 'Выберите подразделение', type: 'error' });
+        return;
+      }
+      if (!this.betweenDepartments && !this.department?.trim()) {
+        this.$emit('notify', { message: 'Укажите название подразделения', type: 'error' });
+        return;
+      }
       try {
         const payload = {
           equipment_id: this.item.id,
           type: this.type,
           act: this.reason,
-          from_department: this.item.department.name,
-          to_department: this.dep || department,
+          from_department: this.item.department?.name ?? '',
+          to_department: this.betweenDepartments ? this.dep : this.department,
         };
         console.log(payload);
 
@@ -143,6 +150,8 @@ export default {
         this.$emit('transferred', this.item);
       } catch (error) {
         console.error('Ошибка передачи оборудования:', error);
+        const msg = error?.response?.data?.detail ?? error?.response?.data?.error?.msg ?? 'Ошибка передачи оборудования';
+        this.$emit('notify', { message: typeof msg === 'string' ? msg : JSON.stringify(msg), type: 'error' });
       } finally {
         this.confirmDialog = false;
       }

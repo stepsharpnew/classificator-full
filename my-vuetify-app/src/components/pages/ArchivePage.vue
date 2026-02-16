@@ -93,8 +93,8 @@
       </v-row>
       <v-card-text class="pa-0 ma-0" v-if="items.length > 0">
         <v-row
-          class="text-center font-weight-bold mt-4 bg-grey-lighten-3 rounded-t"
-          style="font-size: 0.98rem; height: 100px"
+          class="text-center font-weight-bold mt-4 bg-grey-lighten-3 rounded-t archive-table-row"
+          style="font-size: 0.98rem"
         >
           <!-- <v-col
               cols="1"
@@ -164,7 +164,7 @@
         <v-row
           v-for="(item, index) in items"
           :key="item.id"
-          class="text-center align-center py-3 border-b"
+          class="text-center align-center py-3 border-b archive-table-row"
           :class="item.components.length ? 'bg-blue-lighten-5' : 'bg-white'"
         >
           <!-- <v-col cols="1" class="d-flex justify-center align-center">{{
@@ -498,5 +498,8 @@ export default {
   color: darkred;
   text-decoration: underline;
   transform: scale(1.05);
+}
+.archive-table-row {
+  min-height: 80px;
 }
 </style>
