@@ -36,7 +36,8 @@ async def login_handler(login: str, password: str) -> Response:
                                     last_name=user.last_name,
                                     department_id=department,
                                     role=user.role,
-                                    is_superuser=user.is_superuser
+                                    is_superuser=user.is_superuser,
+                                    is_skzi_admin=getattr(user, 'is_skzi_admin', False) or False,
                                     )
         access_token = await Auth.get_access_token(_user.dict())
         refresh_token = await Auth.get_refresh_token(_user.dict())
@@ -81,7 +82,8 @@ async def update_refresh_token(token: str) -> Response:
                                         last_name=user.last_name,
                                         department_id=department,
                                         role=user.role,
-                                        is_superuser=user.is_superuser
+                                        is_superuser=user.is_superuser,
+                                        is_skzi_admin=getattr(user, 'is_skzi_admin', False) or False,
                                         )
             access_token = await Auth.get_access_token(_user.dict())
             refresh_token = await Auth.get_refresh_token(_user.dict())
@@ -164,7 +166,8 @@ async def create_account(credentials, user):
                          last_name=user.last_name,
                          role=user.role,
                          department_id=user.department_id,
-                         password=password
+                         password=password,
+                         is_skzi_admin=bool(getattr(user, 'is_skzi_admin', False)),
                          )
         session.add(new_user)
         await session.commit()
@@ -204,6 +207,7 @@ def _user_to_dict(u):
         'last_name': u.last_name or '',
         'role': u.role.value if hasattr(u.role, 'value') else str(u.role),
         'is_superuser': u.is_superuser,
+        'is_skzi_admin': getattr(u, 'is_skzi_admin', False) or False,
         'department': {'id': str(u.department.id), 'name': u.department.name} if u.department else None,
     }
 
@@ -228,6 +232,25 @@ async def get_users(department:str = None):
     return [_user_to_dict(u) for u in users]
     
 
+
+
+async def update_user_is_skzi_admin(login: str, is_skzi_admin: bool, credentials):
+    response = await Auth.decode_access_token(credentials.credentials)
+    if not response.success:
+        return response
+    if not response.data.get('user').get('is_superuser'):
+        raise HTTPException(status_code=403, detail=f"Недостаточно прав")
+
+    async with async_session() as session:
+        stmt = select(Users).where(Users.login == login)
+        result = await session.execute(stmt)
+        user = result.scalars().first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        user.is_skzi_admin = bool(is_skzi_admin)
+        session.add(user)
+        await session.commit()
+        return user
 
 
 async def change_password_by_admin(login, new_password, credentials):

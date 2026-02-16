@@ -69,6 +69,7 @@ class Users(Base):
     department_id = Column(ForeignKey('department.id'))
     role = Column(Enum('head', 'chief_engineer', 'mol', name="users_role_enum"), nullable=False)
     is_superuser = Column(Boolean, default=False)
+    is_skzi_admin = Column(Boolean, default=False)
     password = Column(String, nullable=False)
     department= relationship("Department", back_populates="users")
     # equipments = relationship("Equipment", back_populates='users')

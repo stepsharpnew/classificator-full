@@ -5,6 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi import Body, Response, HTTPException
 from app.libs.auth.auth_handler import Auth
 from app.libs.handlers.registration_handler import *
+from app.schemas.schema import UserUpdateSkziAdminSchema
 from app.settings import Settings
 
 settings = Settings()
@@ -62,6 +63,16 @@ async def create_user_route(
     credentials: HTTPAuthorizationCredentials = Security(security),
 ):
     return await create_account(credentials=credentials, user=user)
+
+@account_router.put("/user")
+async def update_user_skzi_admin_route(
+    body: UserUpdateSkziAdminSchema,
+    credentials: HTTPAuthorizationCredentials = Security(security),
+):
+    return await update_user_is_skzi_admin(
+        credentials=credentials, login=body.login, is_skzi_admin=body.is_skzi_admin
+    )
+
 
 @account_router.put("/password")
 async def create_user_route(

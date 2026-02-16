@@ -30,6 +30,7 @@ async def skzi_list_router(
     sort_order='asc',
     date_of_act=None,
     end_date_of_cert=None,
+    department=None,
     limit=100,
     offset=0,
 ):
@@ -39,6 +40,7 @@ async def skzi_list_router(
         sort_order=sort_order,
         date_of_act=date_of_act,
         end_date_of_cert=end_date_of_cert,
+        department=department,
         limit=limit,
         offset=offset,
     )

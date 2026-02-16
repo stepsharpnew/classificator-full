@@ -36,6 +36,12 @@ class UsersResponseSchema(BaseModel):
     department_id: str
     role: str
     is_superuser: bool
+    is_skzi_admin: bool = False
+
+
+class UserUpdateSkziAdminSchema(BaseModel):
+    login: str
+    is_skzi_admin: bool
 
 
 class UsersRegisterSchema(BaseModel):
@@ -45,6 +51,7 @@ class UsersRegisterSchema(BaseModel):
     department_id: str
     role: str
     password: str
+    is_skzi_admin: Optional[bool] = False
     
 
 class EquipmentStatus(str, Enum):

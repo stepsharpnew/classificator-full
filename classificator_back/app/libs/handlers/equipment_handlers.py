@@ -215,6 +215,7 @@ async def get_skzi_list(
     sort_order='asc',
     date_of_act=None,
     end_date_of_cert=None,
+    department=None,
     limit=100,
     offset=0,
 ):
@@ -266,6 +267,8 @@ async def get_skzi_list(
                 stmt = stmt.where(func.date(Skzi.end_date_of_sertificate) == dt)
             except (ValueError, TypeError):
                 pass
+        if department:
+            stmt = stmt.where(Equipment.department_id == department)
         if sort_by == 'act_of_receiving_skzi':
             col = Skzi.act_of_receiving_skzi
             stmt = stmt.order_by(nulls_last(col.asc()) if sort_order == 'asc' else nulls_last(col.desc()))
@@ -302,7 +305,8 @@ async def create_equipment(equipment: EquipmentCreateSchema, user):
     role = (user.get('role') or '')
     role_str = str(role).strip().lower() if role else ''
     is_superuser = user.get('is_superuser') in (True, 'true', 1)
-    can_any_department = is_superuser or role_str == 'chief_engineer'
+    is_skzi_admin = user.get('is_skzi_admin') in (True, 'true', 1)
+    can_any_department = is_superuser or role_str == 'chief_engineer' or is_skzi_admin
     if user_dept is not None and not can_any_department:
         if str(equipment.department_id) != str(user_dept):
             raise HTTPException(
@@ -352,6 +356,12 @@ async def create_equipment(equipment: EquipmentCreateSchema, user):
                 session.add(new_child)
                 new_equipment.components.append(new_child)
         if equipment.skzi:
+            can_create_skzi = is_superuser or role_str == 'chief_engineer' or is_skzi_admin
+            if not can_create_skzi:
+                raise HTTPException(
+                    status_code=403,
+                    detail='Только администратор СКЗИ, главный инженер или администратор может создавать СКЗИ',
+                )
             skzi_data = equipment.skzi
             # Проверка уникальности регистрационного номера СКЗИ
             skzi_check = select(Skzi).where(Skzi.registration_number == skzi_data.registration_number)
@@ -405,9 +415,13 @@ async def equipment_update(data, user):
             result = await session.execute(stmt)
             existing_equipment = result.scalars().first()
             if user['department_id'] != str(existing_equipment.department_id):
-                if user['department_id'] == 'admin' or user['role'] == 'chief_engineer':
-                    pass
-                else:
+                can_edit_any = (
+                    user.get('department_id') == 'admin'
+                    or user.get('role') == 'chief_engineer'
+                    or user.get('is_superuser') in (True, 'true', 1)
+                    or user.get('is_skzi_admin') in (True, 'true', 1)
+                )
+                if not can_edit_any:
                     raise HTTPException(status_code=400, detail='Вы не можете редактировать не свое оборудование')
             existing_equipment.inventory_number = data.updated_equipment.inventory_number
             existing_equipment.factory_number = data.updated_equipment.factory_number
@@ -418,46 +432,53 @@ async def equipment_update(data, user):
             existing_equipment.comment = data.updated_equipment.comment
             existing_equipment.department_id = data.updated_equipment.department_id
 
-            # Обработка СКЗИ
+            # Обработка СКЗИ — только администратор СКЗИ, главный инженер или администратор может изменять СКЗИ
             existing_skzi_list = list(existing_equipment.skzi) if existing_equipment.skzi else []
             existing_skzi = existing_skzi_list[0] if existing_skzi_list else None
-            if data.updated_equipment.skzi:
-                skzi_data = data.updated_equipment.skzi
-                # Проверка уникальности регистрационного номера (исключая текущее СКЗИ при обновлении)
-                q = select(Skzi).where(Skzi.registration_number == skzi_data.registration_number)
-                if existing_skzi:
-                    q = q.where(Skzi.id != existing_skzi.id)
-                dup = await session.execute(q)
-                if dup.scalars().first():
-                    raise HTTPException(
-                        status_code=400,
-                        detail='СКЗИ с таким регистрационным номером уже существует',
-                    )
-                if existing_skzi:
-                    existing_skzi.registration_number = skzi_data.registration_number
-                    existing_skzi.act_of_receiving_skzi = skzi_data.act_of_receiving_skzi
-                    existing_skzi.date_of_act_of_receiving = skzi_data.date_of_act_of_receiving
-                    existing_skzi.sertificate_number = skzi_data.sertificate_number
-                    existing_skzi.end_date_of_sertificate = skzi_data.end_date_of_sertificate
-                    existing_skzi.date_of_creation_skzi = skzi_data.date_of_creation_skzi
-                    existing_skzi.nubmer_of_jornal = skzi_data.nubmer_of_jornal
-                    existing_skzi.issued_to_whoom = skzi_data.issued_to_whoom
+            can_edit_skzi = (
+                user.get('department_id') == 'admin'
+                or user.get('role') == 'chief_engineer'
+                or user.get('is_superuser') in (True, 'true', 1)
+                or user.get('is_skzi_admin') in (True, 'true', 1)
+            )
+            if can_edit_skzi:
+                if data.updated_equipment.skzi:
+                    skzi_data = data.updated_equipment.skzi
+                    # Проверка уникальности регистрационного номера (исключая текущее СКЗИ при обновлении)
+                    q = select(Skzi).where(Skzi.registration_number == skzi_data.registration_number)
+                    if existing_skzi:
+                        q = q.where(Skzi.id != existing_skzi.id)
+                    dup = await session.execute(q)
+                    if dup.scalars().first():
+                        raise HTTPException(
+                            status_code=400,
+                            detail='СКЗИ с таким регистрационным номером уже существует',
+                        )
+                    if existing_skzi:
+                        existing_skzi.registration_number = skzi_data.registration_number
+                        existing_skzi.act_of_receiving_skzi = skzi_data.act_of_receiving_skzi
+                        existing_skzi.date_of_act_of_receiving = skzi_data.date_of_act_of_receiving
+                        existing_skzi.sertificate_number = skzi_data.sertificate_number
+                        existing_skzi.end_date_of_sertificate = skzi_data.end_date_of_sertificate
+                        existing_skzi.date_of_creation_skzi = skzi_data.date_of_creation_skzi
+                        existing_skzi.nubmer_of_jornal = skzi_data.nubmer_of_jornal
+                        existing_skzi.issued_to_whoom = skzi_data.issued_to_whoom
+                    else:
+                        skzi_obj = Skzi(
+                            registration_number=skzi_data.registration_number,
+                            act_of_receiving_skzi=skzi_data.act_of_receiving_skzi,
+                            date_of_act_of_receiving=skzi_data.date_of_act_of_receiving,
+                            sertificate_number=skzi_data.sertificate_number,
+                            end_date_of_sertificate=skzi_data.end_date_of_sertificate,
+                            date_of_creation_skzi=skzi_data.date_of_creation_skzi,
+                            nubmer_of_jornal=skzi_data.nubmer_of_jornal,
+                            issued_to_whoom=skzi_data.issued_to_whoom,
+                            equipment_id=existing_equipment.id,
+                        )
+                        session.add(skzi_obj)
                 else:
-                    skzi_obj = Skzi(
-                        registration_number=skzi_data.registration_number,
-                        act_of_receiving_skzi=skzi_data.act_of_receiving_skzi,
-                        date_of_act_of_receiving=skzi_data.date_of_act_of_receiving,
-                        sertificate_number=skzi_data.sertificate_number,
-                        end_date_of_sertificate=skzi_data.end_date_of_sertificate,
-                        date_of_creation_skzi=skzi_data.date_of_creation_skzi,
-                        nubmer_of_jornal=skzi_data.nubmer_of_jornal,
-                        issued_to_whoom=skzi_data.issued_to_whoom,
-                        equipment_id=existing_equipment.id,
-                    )
-                    session.add(skzi_obj)
-            else:
-                if existing_skzi:
-                    await session.delete(existing_skzi)
+                    if existing_skzi:
+                        await session.delete(existing_skzi)
 
             for child_id in data.deleted_equipments:
                 if isinstance(child_id, int):
