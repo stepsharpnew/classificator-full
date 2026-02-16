@@ -50,11 +50,6 @@ const routes = [
     name: 'skzi',
     component: SkziPage,
   },
-  {
-    path: '/management',
-    name: 'management',
-    component: SkziPage,
-  },
 ];
 
 const router = createRouter({

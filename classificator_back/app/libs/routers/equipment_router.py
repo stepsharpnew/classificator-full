@@ -24,8 +24,24 @@ async def equipment_get_archive_router(search = None, equipmentType = None, depa
     return await get_equipments(search, equipmentType, department, year, type, limit, offset, archive=True)
 
 @equipment_router.get("/skzi")
-async def skzi_list_router(search=None, limit=100, offset=0):
-    return await get_skzi_list(search=search, limit=limit, offset=offset)
+async def skzi_list_router(
+    search=None,
+    sort_by=None,
+    sort_order='asc',
+    date_of_act=None,
+    end_date_of_cert=None,
+    limit=100,
+    offset=0,
+):
+    return await get_skzi_list(
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        date_of_act=date_of_act,
+        end_date_of_cert=end_date_of_cert,
+        limit=limit,
+        offset=offset,
+    )
 
 @equipment_router.post('/equipment')
 async def equipment_create_router(equipment: EquipmentCreateSchema, credentials: HTTPAuthorizationCredentials = Security(security)):

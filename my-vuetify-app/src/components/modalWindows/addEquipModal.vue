@@ -192,7 +192,7 @@
               <v-col cols="12" md="4">
                 <v-text-field
                   v-model="formData.skzi.nubmer_of_jornal"
-                  label="Номер журнала"
+                  label="Номер по журналу"
                   outlined
                   dense
                 ></v-text-field>

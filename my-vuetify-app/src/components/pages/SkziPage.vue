@@ -23,13 +23,67 @@
       <v-row class="pa-3 bg-blue-lighten-4 rounded gap-x-4">
         <v-col cols="2">
           <v-text-field
-            label="Поиск (Инв., Зав., Наименование, Рег.№ СКЗИ)"
+            label="Поиск (Инв., Зав., Рег.№, Акт, Сертификат, Журнал, Кому выдано)"
             variant="outlined"
             density="comfortable"
             hide-details
+            clearable
             v-model="filters.search"
             @input="onFilterChange()"
           ></v-text-field>
+        </v-col>
+        <v-col cols="2">
+          <v-text-field
+            label="Дата акта"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+            type="date"
+            clearable
+            v-model="filters.date_of_act"
+            @update:modelValue="onFilterChange()"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="2">
+          <v-text-field
+            label="Дата ок. сертификата"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+            type="date"
+            clearable
+            v-model="filters.end_date_of_cert"
+            @update:modelValue="onFilterChange()"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="2">
+          <v-select
+            label="Сортировка"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+            v-model="filters.sort_by"
+            :items="sortByItems"
+            item-title="title"
+            item-value="value"
+            @update:modelValue="onFilterChange()"
+          ></v-select>
+        </v-col>
+        <v-col cols="1">
+          <v-select
+            label="Порядок"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+            v-model="filters.sort_order"
+            :items="[
+              { title: 'По возр.', value: 'asc' },
+              { title: 'По убыв.', value: 'desc' },
+            ]"
+            item-title="title"
+            item-value="value"
+            @update:modelValue="onFilterChange()"
+          ></v-select>
         </v-col>
         <v-col cols="2" class="d-flex align-center">
           <v-btn variant="elevated" color="error" @click="resetFilters">
@@ -43,11 +97,13 @@
         </span>
       </div>
       <v-card-text class="pa-0 ma-0" v-if="items.length > 0">
+        <v-sheet class="skzi-table-sheet overflow-hidden rounded mx-3 mt-4 mb-3" elevation="0">
         <v-row
-          class="text-center font-weight-bold mt-4 bg-grey-lighten-3 rounded-t table-row"
+          no-gutters
+          class="text-center font-weight-bold bg-grey-lighten-3 rounded-t table-row"
           style="font-size: 0.98rem"
         >
-          <v-col cols="1" class="d-flex justify-center align-center text-no-wrap col-number-header">№</v-col>
+          <v-col cols="1" class="d-flex justify-center align-center text-no-wrap col-number-header py-3">№</v-col>
           <v-col cols="1" class="d-flex justify-center align-center text-no-wrap">Инв. №</v-col>
           <v-col cols="1" class="d-flex justify-center align-center text-no-wrap">Зав. №</v-col>
           <v-col cols="1" class="d-flex flex-column justify-center align-start text-truncate px-1">Наименование</v-col>
@@ -56,12 +112,13 @@
           <v-col cols="1" class="d-flex justify-center align-center text-no-wrap">Дата акта</v-col>
           <v-col cols="1" class="d-flex justify-center align-center text-no-wrap">Сертификат</v-col>
           <v-col cols="1" class="d-flex justify-center align-center text-no-wrap">Дата ок. серт.</v-col>
-          <v-col cols="1" class="d-flex justify-center align-center text-no-wrap">Номер журнала</v-col>
+          <v-col cols="1" class="d-flex justify-center align-center text-no-wrap">Номер по журналу</v-col>
           <v-col cols="1" class="d-flex justify-center align-center col-wrap">Кому выдано</v-col>
-          <v-col cols="1" class="d-flex justify-center align-center text-no-wrap">Управление</v-col>
+          <v-col cols="1" class="d-flex justify-center align-center text-no-wrap py-3">Управление</v-col>
         </v-row>
         <v-divider></v-divider>
         <v-row
+          no-gutters
           v-for="(item, index) in items"
           :key="item.id"
           class="text-center align-center py-3 border-b table-row"
@@ -173,6 +230,7 @@
             </div>
           </v-col>
         </v-row>
+        </v-sheet>
       </v-card-text>
       <v-card-text v-else class="ma-2 pa-5 w-100 d-flex align-center">
         <div>Нет записей СКЗИ</div>
@@ -222,7 +280,18 @@ export default {
       deletedItem: null,
       items: [],
       departments: [],
-      filters: { search: '' },
+      filters: {
+        search: '',
+        date_of_act: null,
+        end_date_of_cert: null,
+        sort_by: '',
+        sort_order: 'asc',
+      },
+      sortByItems: [
+        { title: 'Без сортировки', value: '' },
+        { title: 'Номер акта', value: 'act_of_receiving_skzi' },
+        { title: 'Номер по журналу', value: 'nubmer_of_jornal' },
+      ],
       totalCount: 0,
       itemsPerPage: 20,
       userDepartmentId: '',
@@ -254,6 +323,12 @@ export default {
         offset,
       };
       if (this.filters.search) params.search = this.filters.search;
+      if (this.filters.date_of_act) params.date_of_act = this.filters.date_of_act;
+      if (this.filters.end_date_of_cert) params.end_date_of_cert = this.filters.end_date_of_cert;
+      if (this.filters.sort_by) {
+        params.sort_by = this.filters.sort_by;
+        params.sort_order = this.filters.sort_order;
+      }
       const res = await axios.get('/api/skzi', { params });
       this.items = res.data.items || [];
       this.totalCount = res.data.total_count || 0;
@@ -264,6 +339,10 @@ export default {
     },
     resetFilters() {
       this.filters.search = '';
+      this.filters.date_of_act = null;
+      this.filters.end_date_of_cert = null;
+      this.filters.sort_by = '';
+      this.filters.sort_order = 'asc';
       this.page = 1;
       this.fetchData();
     },

@@ -25,7 +25,6 @@
       <v-tab to="/">Главная</v-tab>
       <v-tab to="/classification">Классификатор</v-tab>
       <v-tab to="/skzi">СКЗИ</v-tab>
-      <v-tab to="/management">Управление</v-tab>
       <v-tab to="/archive">Архив</v-tab>
       <v-tab to="/request">Заявки</v-tab>
       <v-tab to="/department">Подразделения</v-tab>

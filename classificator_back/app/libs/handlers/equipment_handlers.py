@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload, joinedload
 from app.libs.postgres.models import *
 from app.schemas.schema import Response, EquipmentCreateSchema, EquipmentUpdateDataSchema
 from app.libs.auth.auth_handler import Auth
-from sqlalchemy import select, and_, or_, exists, not_
+from sqlalchemy import select, and_, or_, exists, not_, nulls_last
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import func 
 from app.schemas.schema import Response, EquipmentResponseSchema
@@ -209,7 +209,15 @@ async def get_equipments(search, equipmentType, department, year, type, limit=10
             'total_in_work_repair': total_in_work_repair,
         }
 
-async def get_skzi_list(search=None, limit=100, offset=0):
+async def get_skzi_list(
+    search=None,
+    sort_by=None,
+    sort_order='asc',
+    date_of_act=None,
+    end_date_of_cert=None,
+    limit=100,
+    offset=0,
+):
     """Список СКЗИ с данными оборудования (Инв.№, Зав.№, Наименование)."""
     async with async_session() as session:
         stmt = (
@@ -235,6 +243,10 @@ async def get_skzi_list(search=None, limit=100, offset=0):
             stmt = stmt.where(
                 or_(
                     func.lower(Skzi.registration_number).like(func.lower(search_pattern)),
+                    func.lower(Skzi.act_of_receiving_skzi).like(func.lower(search_pattern)),
+                    func.lower(Skzi.sertificate_number).like(func.lower(search_pattern)),
+                    func.lower(Skzi.nubmer_of_jornal).like(func.lower(search_pattern)),
+                    func.lower(Skzi.issued_to_whoom).like(func.lower(search_pattern)),
                     func.lower(Equipment.inventory_number).like(func.lower(search_pattern)),
                     func.lower(Equipment.factory_number).like(func.lower(search_pattern)),
                     Equipment.eq_type.has(
@@ -242,10 +254,30 @@ async def get_skzi_list(search=None, limit=100, offset=0):
                     ),
                 )
             )
+        if date_of_act:
+            try:
+                dt = datetime.strptime(str(date_of_act)[:10], '%Y-%m-%d').date()
+                stmt = stmt.where(func.date(Skzi.date_of_act_of_receiving) == dt)
+            except (ValueError, TypeError):
+                pass
+        if end_date_of_cert:
+            try:
+                dt = datetime.strptime(str(end_date_of_cert)[:10], '%Y-%m-%d').date()
+                stmt = stmt.where(func.date(Skzi.end_date_of_sertificate) == dt)
+            except (ValueError, TypeError):
+                pass
+        if sort_by == 'act_of_receiving_skzi':
+            col = Skzi.act_of_receiving_skzi
+            stmt = stmt.order_by(nulls_last(col.asc()) if sort_order == 'asc' else nulls_last(col.desc()))
+        elif sort_by == 'nubmer_of_jornal':
+            col = Skzi.nubmer_of_jornal
+            stmt = stmt.order_by(nulls_last(col.asc()) if sort_order == 'asc' else nulls_last(col.desc()))
+        else:
+            stmt = stmt.order_by(Skzi.created_at)
         count_stmt = select(func.count()).select_from(stmt.subquery())
         count_result = await session.execute(count_stmt)
         total_count = count_result.scalar() or 0
-        stmt = stmt.order_by(Skzi.created_at).limit(limit).offset(offset)
+        stmt = stmt.limit(limit).offset(offset)
         result = await session.execute(stmt)
         skzi_list = result.unique().scalars().all()
         return {'items': skzi_list, 'total_count': total_count}
