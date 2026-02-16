@@ -125,7 +125,7 @@
               ></v-textarea>
             </v-col>
 
-            <v-col cols="12">
+            <v-col v-if="canEditSkzi" cols="12">
               <v-checkbox
                 v-model="formData.hasSkzi"
                 label="СКЗИ"
@@ -135,7 +135,7 @@
               ></v-checkbox>
             </v-col>
 
-            <template v-if="formData.hasSkzi">
+            <template v-if="canEditSkzi && formData.hasSkzi">
               <v-col cols="12" class="text-subtitle-1 font-weight-medium mt-2">Данные СКЗИ</v-col>
               <v-col cols="12" md="4">
                 <v-text-field
@@ -355,6 +355,10 @@ export default {
     canChooseDepartment: {
       type: Boolean,
       default: false,
+    },
+    canEditSkzi: {
+      type: Boolean,
+      default: true,
     },
     item: {
       type: Object,

@@ -7,6 +7,7 @@
           :departments="departments"
           :user-department-id="userDepartmentId"
           :can-choose-department="canChooseDepartment"
+          :can-edit-skzi="canEditSkzi"
           @created="refreshEquipmentList"
           @closed="onEquipmentDialogClosed"
           @notify="onNotify"
@@ -394,6 +395,7 @@ export default {
       itemsPerPage: 20,
       userDepartmentId: '',
       canChooseDepartment: false,
+      canEditSkzi: false,
       notification: {
         show: false,
         message: '',
@@ -597,9 +599,11 @@ export default {
         const user = payload?.user || {};
         this.userDepartmentId = user.department_id != null ? String(user.department_id) : '';
         this.canChooseDepartment = user.role === 'chief_engineer' || user.is_superuser === true;
+        this.canEditSkzi = user.role === 'chief_engineer' || user.is_superuser === true || user.is_skzi_admin === true;
       } catch (e) {
         this.userDepartmentId = '';
         this.canChooseDepartment = false;
+        this.canEditSkzi = false;
       }
     }
     await this.fetchData();

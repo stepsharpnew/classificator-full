@@ -7,6 +7,7 @@
           :departments="departments"
           :user-department-id="userDepartmentId"
           :can-choose-department="canChooseDepartment"
+          :can-edit-skzi="canEditSkzi"
           @created="refreshSkziList"
           @closed="onEquipmentDialogClosed"
           @notify="onNotify"
@@ -58,6 +59,20 @@
         </v-col>
         <v-col cols="2">
           <v-select
+            :items="departments"
+            item-title="name"
+            item-value="id"
+            label="Подразделение"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+            clearable
+            v-model="filters.department"
+            @update:modelValue="onFilterChange()"
+          ></v-select>
+        </v-col>
+        <v-col cols="1">
+          <v-select
             label="Сортировка"
             variant="outlined"
             density="comfortable"
@@ -85,8 +100,8 @@
             @update:modelValue="onFilterChange()"
           ></v-select>
         </v-col>
-        <v-col cols="2" class="d-flex align-center">
-          <v-btn variant="elevated" color="error" @click="resetFilters">
+        <v-col cols="1" class="d-flex align-center">
+          <v-btn variant="elevated" color="error" size="default" @click="resetFilters">
             Сброс
           </v-btn>
         </v-col>
@@ -175,8 +190,9 @@
           <v-col cols="1" class="d-flex justify-center align-center">
             {{ item.nubmer_of_jornal || '—' }}
           </v-col>
-          <v-col cols="1" class="d-flex justify-center align-center col-wrap px-1">
-            {{ item.issued_to_whoom || '—' }}
+          <v-col cols="1" class="d-flex flex-column justify-center align-center col-wrap px-1">
+            <span class="text-caption text-medium-emphasis">{{ item.equipment?.department?.name || '—' }}</span>
+            <span>{{ item.issued_to_whoom || '—' }}</span>
           </v-col>
           <v-col cols="1" class="d-flex flex-column justify-center align-center">
             <div class="d-flex justify-center align-center mb-2 gap-x-2">
@@ -282,6 +298,7 @@ export default {
       departments: [],
       filters: {
         search: '',
+        department: null,
         date_of_act: null,
         end_date_of_cert: null,
         sort_by: '',
@@ -296,6 +313,7 @@ export default {
       itemsPerPage: 20,
       userDepartmentId: '',
       canChooseDepartment: false,
+      canEditSkzi: false,
       notification: {
         show: false,
         message: '',
@@ -323,6 +341,7 @@ export default {
         offset,
       };
       if (this.filters.search) params.search = this.filters.search;
+      if (this.filters.department) params.department = this.filters.department;
       if (this.filters.date_of_act) params.date_of_act = this.filters.date_of_act;
       if (this.filters.end_date_of_cert) params.end_date_of_cert = this.filters.end_date_of_cert;
       if (this.filters.sort_by) {
@@ -339,6 +358,7 @@ export default {
     },
     resetFilters() {
       this.filters.search = '';
+      this.filters.department = null;
       this.filters.date_of_act = null;
       this.filters.end_date_of_cert = null;
       this.filters.sort_by = '';
@@ -411,9 +431,11 @@ export default {
         const user = payload?.user || {};
         this.userDepartmentId = user.department_id != null ? String(user.department_id) : '';
         this.canChooseDepartment = user.role === 'chief_engineer' || user.is_superuser === true;
+        this.canEditSkzi = user.role === 'chief_engineer' || user.is_superuser === true || user.is_skzi_admin === true;
       } catch (e) {
         this.userDepartmentId = '';
         this.canChooseDepartment = false;
+        this.canEditSkzi = false;
       }
     }
     const deptRes = await axios.get('/api/departments');

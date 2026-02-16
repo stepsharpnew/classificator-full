@@ -38,6 +38,13 @@
             :rules="[(v) => !!v || 'Выберите роль']"
           />
 
+          <v-checkbox
+            v-model="form.is_skzi_admin"
+            label="Администратор СКЗИ"
+            hide-details
+            color="primary"
+          />
+
           <v-text-field
             v-model="form.password"
             label="Пароль"
@@ -79,6 +86,7 @@ export default {
         department_id: '', // здесь будет id, а не name
         role: '',
         password: '',
+        is_skzi_admin: false,
       },
       departments: [],
       roles: ['mol', 'chief_engineer'],

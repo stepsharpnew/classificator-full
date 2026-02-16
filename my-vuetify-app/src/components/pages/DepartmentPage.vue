@@ -59,9 +59,13 @@
               class="ma-1 pa-1"
               label
               size="big"
+              style="cursor: pointer"
+              @click="openEditUser(user)"
             >
               {{ user.first_name }} {{ user.last_name }}
               <span v-if="user.role" class="ml-1 text-caption">({{ roleDisplayName(user.role) }})</span>
+              <v-icon v-if="user.is_skzi_admin" size="small" class="ml-1" color="green">mdi-shield-check</v-icon>
+              <v-icon size="small" class="ml-1">mdi-pencil</v-icon>
             </v-chip>
           </v-col>
           <v-divider></v-divider>
@@ -72,6 +76,17 @@
     <!-- Модалка добавления пользователя -->
     <AddUserDialog v-model="showAddUser" @user-created="loadUsers" />
     <AddDepDialog v-model="showAddDep" @dep-created="loadUsers" />
+    <EditUserDialog
+      v-model="showEditUser"
+      :user="selectedUser"
+      @updated="loadUsers"
+      @notify="onNotify"
+    />
+    <NotificationDialog
+      v-model="notification.show"
+      :message="notification.message"
+      :type="notification.type"
+    />
   </div>
 </template>
 
@@ -80,15 +95,20 @@ import axios from 'axios';
 import MainNavBar from '../components/MainNavBar.vue';
 import AddUserDialog from '../modalWindows/AddUserDialog.vue';
 import AddDepDialog from '../modalWindows/addDepDialog.vue';
+import EditUserDialog from '../modalWindows/EditUserDialog.vue';
+import NotificationDialog from '../modalWindows/NotificationDialog.vue';
 
 export default {
-  components: { MainNavBar, AddUserDialog, AddDepDialog },
+  components: { MainNavBar, AddUserDialog, AddDepDialog, EditUserDialog, NotificationDialog },
   data() {
     return {
       users: [],
       departments: [],
       showAddUser: false,
       showAddDep: false,
+      showEditUser: false,
+      selectedUser: null,
+      notification: { show: false, message: '', type: 'success' },
     };
   },
 
@@ -97,6 +117,13 @@ export default {
   },
 
   methods: {
+    openEditUser(user) {
+      this.selectedUser = user;
+      this.showEditUser = true;
+    },
+    onNotify({ message, type }) {
+      this.notification = { show: true, message, type };
+    },
     roleDisplayName(role) {
       if (!role) return '';
       const r = String(role).toLowerCase();
