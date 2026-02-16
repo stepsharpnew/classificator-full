@@ -577,7 +577,9 @@ async def equipment_delete(id, user):
                         detail='Только администратор СКЗИ, главный инженер или администратор может удалять оборудование, являющееся СКЗИ',
                     )
             if user['role'] == 'mol':
-                if user['department_id'] != str(equipment.department_id):
+                # Администратор СКЗИ может удалять оборудование-СКЗИ любого подразделения
+                is_skzi_admin = user.get('is_skzi_admin') in (True, 'true', 1)
+                if not (has_skzi and is_skzi_admin) and user['department_id'] != str(equipment.department_id):
                     raise HTTPException(status_code=400, detail='Вы не можете удалить не свое оборудование')
 
             # 3. Удаляем связи в таблице equipment_components, связанные с дочерними элементами
