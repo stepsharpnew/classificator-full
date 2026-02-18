@@ -242,7 +242,7 @@
                 @transferred="fetchData"
                 @notify="onNotify"
               />
-              <ConfirmArchiveDialog :item="equipmentForItem(item)" @archived="fetchData" />
+              <ConfirmArchiveDialog :item="equipmentForItem(item)" @archived="fetchData" @notify="onNotify" />
             </div>
           </v-col>
         </v-row>

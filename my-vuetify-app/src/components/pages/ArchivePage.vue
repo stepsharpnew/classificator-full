@@ -189,8 +189,30 @@
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.factory_number }}
           </v-col>
-          <v-col cols="2" class="d-flex justify-center align-center"
-            >{{ item.eq_type?.name }}
+          <v-col cols="2" class="d-flex flex-column justify-center align-start text-truncate px-1">
+            <v-tooltip v-if="item.eq_type?.name" location="top">
+              <template #activator="{ props }">
+                <span v-bind="props" class="text-truncate d-inline-block" style="max-width: 100%; cursor: default">
+                  <template v-if="getClassificatorPath(item.eq_type)">
+                    <span class="classificator-number">{{ getClassificatorPath(item.eq_type) }}</span>
+                    <span> </span>
+                  </template>
+                  <span>{{ item.eq_type.name }}</span>
+                </span>
+              </template>
+              <template #default>
+                <span class="equipment-tooltip-content">{{ getEquipmentFullName(item) }}</span>
+              </template>
+            </v-tooltip>
+            <span v-else>—</span>
+            <div class="d-flex flex-column mt-1 eq-labels-block">
+              <span v-if="item.eq_type?.staff_number" class="eq-name-label">
+                <span class="eq-label-text">Табель</span> {{ item.eq_type.staff_number }}
+              </span>
+              <span v-if="item.eq_type?.fnn != null && item.eq_type?.fnn !== ''" class="eq-name-label">
+                <span class="eq-label-text">ФНН</span> {{ item.eq_type.fnn }}
+              </span>
+            </div>
           </v-col>
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.comment }}
@@ -445,6 +467,15 @@ export default {
           return status;
       }
     },
+    getClassificatorPath(eqType) {
+      if (!eqType || !eqType.classificator_path) return null;
+      return String(eqType.classificator_path);
+    },
+    getEquipmentFullName(item) {
+      if (!item?.eq_type?.name) return '';
+      const path = this.getClassificatorPath(item.eq_type);
+      return path ? `${path} ${item.eq_type.name}`.trim() : item.eq_type.name;
+    },
     editItem(item) {
       this.selectedItem = item;
       this.selectedMode = 'edit';
@@ -505,5 +536,39 @@ export default {
 }
 .archive-table-row {
   min-height: 80px;
+}
+
+.classificator-number {
+  font-weight: bold;
+  color: #1976d2;
+  margin-right: 4px;
+  font-size: 1.05em;
+}
+
+.eq-labels-block {
+  gap: 2px;
+  line-height: 1.2;
+}
+.eq-label-text {
+  font-size: 0.55rem;
+  color: rgba(0, 0, 0, 0.42);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-right: 3px;
+}
+.eq-name-label {
+  font-size: 0.65rem;
+  color: rgba(0, 0, 0, 0.7);
+}
+</style>
+<style>
+.equipment-tooltip-content {
+  display: inline-block;
+  max-width: 16em;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.35;
+  text-align: left;
 }
 </style>

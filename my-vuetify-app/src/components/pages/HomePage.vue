@@ -315,7 +315,7 @@
                 @transferred="fetchData"
                 @notify="onNotify"
               ></ChangeDepartmentDialog>
-              <ConfirmArchiveDialog :item="item" @archived="fetchData" />
+              <ConfirmArchiveDialog :item="item" @archived="fetchData" @notify="onNotify" />
             </div>
           </v-col>
         </v-row>

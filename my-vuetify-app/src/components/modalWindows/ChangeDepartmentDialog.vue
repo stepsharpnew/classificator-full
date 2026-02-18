@@ -133,9 +133,10 @@ export default {
         return;
       }
       try {
+        const requestType = this.betweenDepartments ? 'transfer' : 'decommissioning';
         const payload = {
           equipment_id: this.item.id,
-          type: this.type,
+          type: requestType,
           act: this.reason,
           from_department: this.item.department?.name ?? '',
           to_department: this.betweenDepartments ? this.dep : this.department,

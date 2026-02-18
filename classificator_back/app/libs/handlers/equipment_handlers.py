@@ -680,11 +680,18 @@ async def request_status(id, status, user):
         stmt = select(EquipmentRequests).where(and_(EquipmentRequests.id == id, EquipmentRequests.approval_status == 'pending'))
         result = await session.execute(stmt)
         request = result.scalars().first()
+ 
         if not request:
             raise HTTPException(status_code=404, detail="Заявка не найдена")
         try:
             request.approval_status = status
             request.approver_id = user.get('id')
+            print('\n')
+            print(status)
+            print(user.get('id'))
+            print(request.to_department)
+            print(request.request_type)
+            print('\n')
             if status == 'approved':
                 stmt = select(Equipment).where(Equipment.id == request.equipment_id).options(selectinload(Equipment.components))
                 result = await session.execute(stmt)
@@ -727,15 +734,18 @@ async def request_status(id, status, user):
 
 async def delete_request(id, user):
     async with async_session() as session:
-        request = await session.get(EquipmentRequests, id)  # Use session.get to fetch the object
-        if request:
-            if str(request.user_id) == user.get('id'):
-                await session.delete(request)  # Use session.delete to delete
-                await session.commit()  # Use await session.commit() for async commit
-            else:
-                raise HTTPException(status_code=403, detail="Недостаточно прав")
-        else:
+        request = await session.get(EquipmentRequests, id)
+        if not request:
             raise HTTPException(status_code=404, detail="Запрос не найден")
+        if request.approval_status != 'pending':
+            raise HTTPException(
+                status_code=403,
+                detail="Нельзя удалить заявку со статусом «Одобрена» или «Отклонена». Удалять можно только заявки в ожидании.",
+            )
+        if str(request.user_id) != str(user.get('id')):
+            raise HTTPException(status_code=403, detail="Недостаточно прав")
+        await session.delete(request)
+        await session.commit()
         
 
 

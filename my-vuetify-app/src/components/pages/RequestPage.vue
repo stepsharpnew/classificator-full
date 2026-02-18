@@ -113,8 +113,8 @@
             >Зав. №</v-col
           >
           <v-col
-            cols="2"
-            class="d-flex justify-center align-center text-no-wrap"
+            cols="1"
+            class="d-flex justify-center align-center text-no-wrap text-truncate"
             >Наименование</v-col
           >
           <v-col
@@ -143,7 +143,7 @@
           <v-col
             cols="1"
             class="d-flex justify-center align-center text-no-wrap"
-            >Тип</v-col
+            >Тип заявки</v-col
           >
           <v-col
             cols="1"
@@ -159,7 +159,13 @@
             cols="1"
             class="d-flex justify-center align-center text-no-wrap"
           >
-            Статус
+            Статус заявки
+          </v-col>
+          <v-col
+            cols="1"
+            class="d-flex justify-center align-center text-no-wrap"
+          >
+            Управление
           </v-col>
         </v-row>
         <v-divider></v-divider>
@@ -192,8 +198,30 @@
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.equipment.factory_number }}
           </v-col>
-          <v-col cols="2" class="d-flex justify-center align-center"
-            >{{ item.equipment.eq_type?.name }}
+          <v-col cols="1" class="d-flex flex-column justify-center align-start text-truncate px-1">
+            <v-tooltip v-if="item.equipment?.eq_type?.name" location="top">
+              <template #activator="{ props }">
+                <span v-bind="props" class="text-truncate d-inline-block" style="max-width: 100%; cursor: default">
+                  <template v-if="getClassificatorPath(item.equipment?.eq_type)">
+                    <span class="classificator-number">{{ getClassificatorPath(item.equipment.eq_type) }}</span>
+                    <span> </span>
+                  </template>
+                  <span>{{ item.equipment.eq_type.name }}</span>
+                </span>
+              </template>
+              <template #default>
+                <span class="equipment-tooltip-content">{{ getEquipmentFullName(item.equipment) }}</span>
+              </template>
+            </v-tooltip>
+            <span v-else>—</span>
+            <div class="d-flex flex-column mt-1 eq-labels-block">
+              <span v-if="item.equipment?.eq_type?.staff_number" class="eq-name-label">
+                <span class="eq-label-text">Табель</span> {{ item.equipment.eq_type.staff_number }}
+              </span>
+              <span v-if="item.equipment?.eq_type?.fnn != null && item.equipment?.eq_type?.fnn !== ''" class="eq-name-label">
+                <span class="eq-label-text">ФНН</span> {{ item.equipment.eq_type.fnn }}
+              </span>
+            </div>
           </v-col>
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.equipment.comment }}
@@ -208,8 +236,8 @@
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.equipment.act_of_decommissioning }}
           </v-col>
-          <v-col cols="1" class="d-flex justify-center align-center"
-            >{{ typeDisplayName(item.equipment.eq_type?.type) }}
+          <v-col cols="1" class="d-flex justify-center align-center">
+            {{ requestTypeText(item.request_type) }}
           </v-col>
           <v-col cols="1" class="d-flex justify-center align-center"
             >{{ item.equipment.department?.name }}
@@ -222,11 +250,45 @@
           </v-col>
           <v-col cols="1" class="d-flex justify-center align-center">
             <v-chip
-              :color="statusColor(item.status)"
+              :color="requestStatusColor(item.approval_status)"
               size="small"
               class="text-white text-uppercase"
-              >{{ statusText(item.equipment.status) }}</v-chip
+              >{{ requestStatusText(item.approval_status) }}</v-chip
             >
+          </v-col>
+          <v-col cols="1" class="d-flex justify-center align-center flex-wrap gap-1">
+            <template v-if="canApproveRequest && item.approval_status === 'pending'">
+              <v-btn
+                size="small"
+                color="success"
+                variant="tonal"
+                @click="approveRequest(item)"
+                :loading="actionLoadingId === item.id"
+                v-tooltip="'Одобрить заявку'"
+              >
+                <v-icon size="small">mdi-check</v-icon>
+              </v-btn>
+              <v-btn
+                size="small"
+                color="error"
+                variant="tonal"
+                @click="rejectRequest(item)"
+                :loading="actionLoadingId === item.id"
+                v-tooltip="'Отклонить заявку'"
+              >
+                <v-icon size="small">mdi-close</v-icon>
+              </v-btn>
+            </template>
+            <v-btn
+              v-if="isMyRequest(item) && item.approval_status === 'pending'"
+              size="small"
+              color="error"
+              variant="tonal"
+              @click="openDeleteRequestDialog(item)"
+              v-tooltip="'Удалить заявку'"
+            >
+              <v-icon size="small">mdi-delete</v-icon>
+            </v-btn>
           </v-col>
 
           <!-- <v-col cols="1" class="d-flex justify-center align-center gap-x-2">
@@ -282,6 +344,36 @@
       :total-visible="7"
       rounded="circle"
     ></v-pagination>
+
+    <!-- Диалог подтверждения удаления заявки -->
+    <v-dialog v-model="deleteRequestDialog" max-width="400" persistent>
+      <v-card>
+        <v-card-title class="text-h6">Удалить заявку?</v-card-title>
+        <v-card-text>
+          Вы уверены, что хотите удалить эту заявку? Удалять можно только свою заявку.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="deleteRequestDialog = false">Отмена</v-btn>
+          <v-btn color="error" :loading="deleteRequestLoading" @click="confirmDeleteRequest">Удалить</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Модальное окно ошибки -->
+    <v-dialog v-model="errorDialog" max-width="440" persistent>
+      <v-card>
+        <v-card-title class="text-h6 d-flex align-center">
+          <v-icon color="error" class="mr-2">mdi-alert-circle</v-icon>
+          Ошибка
+        </v-card-title>
+        <v-card-text>{{ errorMessage }}</v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn color="primary" @click="errorDialog = false">Понятно</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -329,6 +421,14 @@ export default {
       userDepartmentId: '',
       canChooseDepartment: false,
       canEditSkzi: false,
+      canApproveRequest: false,
+      currentUserId: null,
+      actionLoadingId: null,
+      deleteRequestDialog: false,
+      requestToDelete: null,
+      deleteRequestLoading: false,
+      errorDialog: false,
+      errorMessage: '',
     };
   },
   computed: {
@@ -433,6 +533,105 @@ export default {
           return status;
       }
     },
+    requestStatusColor(approvalStatus) {
+      if (!approvalStatus) return 'grey';
+      switch (approvalStatus) {
+        case 'pending':
+          return 'warning';
+        case 'approved':
+          return 'success';
+        case 'rejected':
+          return 'error';
+        default:
+          return 'grey';
+      }
+    },
+    requestStatusText(approvalStatus) {
+      if (!approvalStatus) return '—';
+      switch (approvalStatus) {
+        case 'pending':
+          return 'Ожидает';
+        case 'approved':
+          return 'Одобрена';
+        case 'rejected':
+          return 'Отклонена';
+        default:
+          return approvalStatus;
+      }
+    },
+    requestTypeText(requestType) {
+      if (!requestType) return '—';
+      switch (requestType) {
+        case 'transfer':
+          return 'Передача';
+        case 'decommissioning':
+          return 'Списание';
+        default:
+          return requestType;
+      }
+    },
+    getClassificatorPath(eqType) {
+      if (!eqType || !eqType.classificator_path) return null;
+      return String(eqType.classificator_path);
+    },
+    getEquipmentFullName(equipment) {
+      if (!equipment?.eq_type?.name) return '';
+      const path = this.getClassificatorPath(equipment.eq_type);
+      return path ? `${path} ${equipment.eq_type.name}`.trim() : equipment.eq_type.name;
+    },
+    isMyRequest(item) {
+      if (!this.currentUserId || !item) return false;
+      return String(item.user_id) === String(this.currentUserId);
+    },
+    async approveRequest(item) {
+      this.actionLoadingId = item.id;
+      try {
+        await axios.post(`/api/request/${item.id}/approved`);
+        this.fetchData();
+        if (this.$emit) this.$emit('notify', { message: 'Заявка одобрена', type: 'success' });
+      } catch (e) {
+        this.showError(e);
+      } finally {
+        this.actionLoadingId = null;
+      }
+    },
+    async rejectRequest(item) {
+      this.actionLoadingId = item.id;
+      try {
+        await axios.post(`/api/request/${item.id}/rejected`);
+        this.fetchData();
+        if (this.$emit) this.$emit('notify', { message: 'Заявка отклонена', type: 'success' });
+      } catch (e) {
+        this.showError(e);
+      } finally {
+        this.actionLoadingId = null;
+      }
+    },
+    openDeleteRequestDialog(item) {
+      this.requestToDelete = item;
+      this.deleteRequestDialog = true;
+    },
+    async confirmDeleteRequest() {
+      if (!this.requestToDelete) return;
+      this.deleteRequestLoading = true;
+      try {
+        await axios.delete(`/api/request?id=${this.requestToDelete.id}`);
+        this.deleteRequestDialog = false;
+        this.requestToDelete = null;
+        this.fetchData();
+        if (this.$emit) this.$emit('notify', { message: 'Заявка удалена', type: 'success' });
+      } catch (e) {
+        this.showError(e);
+      } finally {
+        this.deleteRequestLoading = false;
+      }
+    },
+    showError(e) {
+      const data = e.response?.data;
+      this.errorMessage = data?.detail || e.message || 'Произошла ошибка';
+      if (Array.isArray(this.errorMessage)) this.errorMessage = this.errorMessage.join(' ');
+      this.errorDialog = true;
+    },
     editItem(item) {
       this.selectedItem = item;
       this.selectedMode = 'edit';
@@ -454,10 +653,14 @@ export default {
         this.userDepartmentId = user.department_id != null ? String(user.department_id) : '';
         this.canChooseDepartment = user.role === 'chief_engineer' || user.is_superuser === true;
         this.canEditSkzi = user.role === 'chief_engineer' || user.is_superuser === true || user.is_skzi_admin === true;
+        this.canApproveRequest = user.role !== 'mol';
+        this.currentUserId = user.id != null ? String(user.id) : null;
       } catch (e) {
         this.userDepartmentId = '';
         this.canChooseDepartment = false;
         this.canEditSkzi = false;
+        this.canApproveRequest = false;
+        this.currentUserId = null;
       }
     }
     await this.fetchData();
@@ -491,5 +694,39 @@ export default {
   color: darkred;
   text-decoration: underline;
   transform: scale(1.05);
+}
+
+.classificator-number {
+  font-weight: bold;
+  color: #1976d2;
+  margin-right: 4px;
+  font-size: 1.05em;
+}
+
+.eq-labels-block {
+  gap: 2px;
+  line-height: 1.2;
+}
+.eq-label-text {
+  font-size: 0.55rem;
+  color: rgba(0, 0, 0, 0.42);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-right: 3px;
+}
+.eq-name-label {
+  font-size: 0.65rem;
+  color: rgba(0, 0, 0, 0.7);
+}
+</style>
+<style>
+.equipment-tooltip-content {
+  display: inline-block;
+  max-width: 16em;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.35;
+  text-align: left;
 }
 </style>

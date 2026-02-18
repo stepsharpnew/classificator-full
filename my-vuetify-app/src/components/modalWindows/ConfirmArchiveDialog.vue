@@ -61,14 +61,21 @@ export default {
     },
     async confirmArchive() {
       try {
-        console.log('Архивация:', this.item);
-        const archived = await axios.post(this.archiveUrl, {
-          id: this.item.id,
+        const res = await axios.post('/api/request', null, {
+          params: {
+            equipment_id: this.item.id,
+            type: 'decommissioning',
+            act: 'Списание',
+            from_department: this.item.department?.name ?? '',
+            to_department: null,
+          },
         });
-        console.log('Ответ сервера:', archived);
         this.$emit('archived', this.item);
+        this.$emit('notify', { message: 'Заявка на списание создана', type: 'success' });
       } catch (e) {
-        console.error('Ошибка архивации:', e);
+        console.error('Ошибка создания заявки:', e);
+        const msg = e?.response?.data?.detail ?? e?.response?.data?.error?.msg ?? 'Не удалось создать заявку';
+        this.$emit('notify', { message: typeof msg === 'string' ? msg : JSON.stringify(msg), type: 'error' });
       } finally {
         this.confirmDialog = false;
       }
